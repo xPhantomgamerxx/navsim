@@ -1,0 +1,7 @@
+Change number of scenes in navtest scene filter here: /home/ubuntu/project_ws/navsim/navsim/planning/script/config/common/train_test_split/scene_filter/navtest.yaml
+
+Notably, EP cannot be solved purely by human imitation, given that the maximum progress estimate used for normalization is based on a privileged rule-based motion planner.
+
+for visualization:
+    check the pose of the ego vehicle in /home/ubuntu/project_ws/navsim/navsim/visualization/bev.py 
+    relative pose calculated wrong in /home/ubuntu/project_ws/navsim/navsim/visualization/plots.py
