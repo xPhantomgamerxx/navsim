@@ -1,4 +1,4 @@
 defaults:
-  - scene_filter: worsttest #navtest
+  - scene_filter: worsttest 
 
 data_split: test

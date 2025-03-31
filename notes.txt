@@ -5,3 +5,8 @@ Notably, EP cannot be solved purely by human imitation, given that the maximum p
 for visualization:
     check the pose of the ego vehicle in /home/ubuntu/project_ws/navsim/navsim/visualization/bev.py 
     relative pose calculated wrong in /home/ubuntu/project_ws/navsim/navsim/visualization/plots.py
+
+
+Challenging scenarios: 
+    df240e44ad0d5c3c, rainy conditions and car ahead badly visible
+    f1dabe118a6955d6, fails, even though it looks like its fine, maybe predict too far movement?

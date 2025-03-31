@@ -14,4 +14,6 @@ class DeepSeekConfig:
     
     vlm_model: str = "deepseek-ai/Janus-Pro-7B"
     llm_model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+
+    main_prompt: str = ""
     

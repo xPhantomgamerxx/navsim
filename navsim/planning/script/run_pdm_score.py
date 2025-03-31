@@ -67,6 +67,8 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
     tokens_to_evaluate = list(set(scene_loader.tokens) & set(metric_cache_loader.tokens))
     pdm_results: List[Dict[str, Any]] = []
     for idx, (token) in enumerate(tokens_to_evaluate):
+        # if token != "f1dabe118a6955d6":
+        #     continue
         logger.info(
             f"Processing scenario {idx + 1} / {len(tokens_to_evaluate)} in thread_id={thread_id}, node_id={node_id}, token={token}"
         )
@@ -136,8 +138,9 @@ def main(cfg: DictConfig) -> None:
         }
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
-    score = run_pdm_score(data_points)
-    score_rows: List[Tuple[Dict[str, Any], int, int]] = worker_map(worker, run_pdm_score, data_points)
+    score_rows = run_pdm_score(data_points)
+    # print(score)
+    # score_rows: List[Tuple[Dict[str, Any], int, int]] = worker_map(worker, run_pdm_score, data_points)
 
     pdm_score_df = pd.DataFrame(score_rows)
     num_sucessful_scenarios = pdm_score_df["valid"].sum()
