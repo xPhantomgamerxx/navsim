@@ -19,6 +19,7 @@ from Janus.janus.models import MultiModalityCausalLM, VLChatProcessor
 from Janus.janus.utils.io import load_pil_images
 from navsim.agents.utils import EstimateCurvatureFromTrajectory, IntegrateCurvatureForPoints, OverlayTrajectory, WriteImageSequenceToVideo
 from navsim.agents.deepseek.deepseek_config import DeepSeekConfig
+from scipy.integrate import cumulative_trapezoid
 
 
 def vlm_inference(
@@ -50,7 +51,7 @@ def vlm_inference(
         pad_token_id=tokenizer.eos_token_id,
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id,
-        max_new_tokens=1024,
+        max_new_tokens=2048,
         do_sample=False,
         use_cache=True)
 
@@ -166,7 +167,6 @@ def call_llm(
     answer = llm_pipe(prompt)
     return answer
 
-
 def GenerateMotion(
     current_image: str = None, 
     past_waypoints = None, 
@@ -178,7 +178,7 @@ def GenerateMotion(
     llm: pipeline = None,
     tokenizer = None,
     command: str = None,
-    verbose: bool = True,
+    verbose: bool = False,
     method: str = "llm"
 ) -> str:
     """Applies the OpenEMMA method of generating the reasoning process behind the prediction.
@@ -200,25 +200,27 @@ def GenerateMotion(
     past_speed_curvature_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in zip(past_velocities, past_curvatures)]
     past_speed_curvature_str = ", ".join(past_speed_curvature_str)
 
-    message = f"You are an expert driver, driving the ego vehicle. \
-        The scene is described by: {scene_description}.\
-        The most important objects have been described as: {object_description}.\
-        The current intent of the vehicle is described as: {intent_description}.\
-        The historical velocities and curvatures of the ego car of the last 5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
-        {f'For the previous frame, this prediction was given for the best motion: {past_intent} ' if past_intent else ''}. \
-        You must reason about the scene fully, then make a prediction about the next 10 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_10, curvature_10] in the style of a python tuple. f there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
+    # message = f"You are an expert driver, driving the ego vehicle. \
+    #     The scene is described by: {scene_description}.\
+    #     The most important objects have been described as: {object_description}.\
+    #     The current intent of the vehicle is described as: {intent_description}.\
+    #     The historical velocities and curvatures of the ego car of the last 5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
+    #     {f'For the previous frame, this prediction was given for the best motion: {past_intent} ' if past_intent else ''}. \
+    #     You must reason about the scene fully, then make a prediction about the next 10 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_10, curvature_10] in the style of a python tuple. If there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
     
-    message = f"You are an expert driver, driving the ego vehicle. \
-        The scene is described by: {scene_description}.\
-        The most important objects have been described as: {object_description}.\
-        The current intent of the vehicle is described as: {intent_description}.\
-        The historical velocities and curvatures of the ego car of the last 5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
-        You must reason about the scene fully, then make a prediction about the next 8 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8] in the style of a python tuple. f there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
+    message = f"You are an expert driver, who is driving the ego vehicle. \
+        The scene is described by:{scene_description}.\
+        The most important objects to pay attention to have been described as:{object_description}.\
+        The current intent of the vehicle is described as:{intent_description}.\
+        The historical velocities and curvatures of the ego car of the last 4.5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
+        They are given in the format of [[speed_1, curvature_1],...,[speed_9,curvature_9]] with a positive curvature for left turn, negative curvature for right turn, where the last entry is the last known speed and curvature.\
+        You must reason about the scene fully, then make a prediction about the next 8 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8] in the style of a python tuple. If there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
 
     while True:
         speed_curvature_pred = []
         if method == "llm":
             if verbose: print(f"Message that will be passed to LLM: \n{message}")
+            print("Calling LLM...")
             ticc = datetime.now()
             prediction = call_llm(message=message, llm_pipe=llm)
             tocc = datetime.now()
@@ -247,19 +249,7 @@ def GenerateMotion(
     
     return prediction, speed_curvature_pred, scene_description, object_description, intent_description
 
-
-
 def pose_to_vel_cur(poses, dt=0.5):
-    """
-    Compute velocity and curvature from a sequence of historic poses using the 3-point circle method.
-
-    Parameters:
-        poses (numpy array): An array of shape (N, 3) where each row is [x, y, heading].
-        dt (float): The time step between each pose (default is 0.5s).
-
-    Returns:
-        list of lists: [[velocity_1, curvature_1], [velocity_2, curvature_2], ...]
-    """
     velocities = []
     curvatures = []
 
@@ -311,3 +301,82 @@ def pose_to_vel_cur(poses, dt=0.5):
     # Return as a 2D list
     return np.array([[v, k] for v, k in zip(velocities, curvatures)])
 
+
+def integrate_curvature_velocity_to_waypoints(curvatures,velocities,dt=0.5,initial_position=(0.0, 0.0),initial_heading=0.0):
+
+    curvatures = np.array(curvatures).flatten()
+    velocities = np.array(velocities).flatten()
+    
+    t = np.arange(len(curvatures)) * dt
+
+    # Integrate heading using trapezoidal rule
+    theta = cumulative_trapezoid(curvatures * velocities, t, initial=initial_heading)
+
+    # Compute velocity components
+    v_x = velocities * np.cos(theta)
+    v_y = velocities * np.sin(theta)
+
+    # Integrate position using trapezoid for first N-1 steps
+    x = cumulative_trapezoid(v_x, t, initial=initial_position[0])
+    y = cumulative_trapezoid(v_y, t, initial=initial_position[1])
+
+    # Do an explicit Euler step to get the final waypoint
+    x_final = x[-1] + v_x[-1] * dt
+    y_final = y[-1] + v_y[-1] * dt
+
+    # Stack waypoints: 7 from trapezoid + 1 from final step
+    waypoints = np.vstack([
+        np.stack((x[1:], y[1:]), axis=1),  # first 7 waypoints
+        np.array([x_final, y_final])       # 8th waypoint
+    ])
+    waypoints = np.concatenate((waypoints, theta.reshape(8, 1)), axis=1)  # Add heading
+    return waypoints
+
+
+def predict_future_waypoints(pred_speeds, pred_curvatures, initial_pose = [0,0,0], dt=0.5):
+    speeds = np.array(pred_speeds)
+    curvatures = np.array(pred_curvatures)
+    
+    x, y, theta = initial_pose
+    waypoints = [[x, y, theta]]
+
+    for i in range(len(speeds) - 1):
+        v1, v2 = speeds[i], speeds[i + 1]
+        k1, k2 = curvatures[i], curvatures[i + 1]
+        
+        v_avg = 0.5 * (v1 + v2)
+        k_avg = 0.5 * (k1 + k2)
+        dtheta = v_avg * k_avg * dt
+
+        if abs(k_avg) > 1e-6:
+            R = 1.0 / k_avg
+            dx = R * (np.sin(theta + dtheta) - np.sin(theta))
+            dy = -R * (np.cos(theta + dtheta) - np.cos(theta))
+        else:
+            dx = v_avg * dt * np.cos(theta)
+            dy = v_avg * dt * np.sin(theta)
+
+        x += dx
+        y += dy
+        theta += dtheta
+        waypoints.append([x, y, theta])
+
+    # Final step using classical integration (Euler)
+    v = speeds[-1]
+    k = curvatures[-1]
+    dtheta = v * k * dt
+
+    if abs(k) > 1e-6:
+        R = 1.0 / k
+        dx = R * (np.sin(theta + dtheta) - np.sin(theta))
+        dy = -R * (np.cos(theta + dtheta) - np.cos(theta))
+    else:
+        dx = v * dt * np.cos(theta)
+        dy = v * dt * np.sin(theta)
+
+    x += dx
+    y += dy
+    theta += dtheta
+    waypoints.append([x, y, theta])
+    final = np.array(waypoints)
+    return final[-8:,:]

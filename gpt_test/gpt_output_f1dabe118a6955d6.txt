@@ -1,0 +1,9 @@
+1. The most difficult to predict agents are:
+- Black car behind
+- White SUV to the left
+
+Explanation: The black car behind is closest and requires monitoring to ensure it maintains a safe distance. The white SUV to the left is close to my lane and might merge unexpectedly.
+
+2. Overall, the prediction difficulty of this scene is 5.
+   
+Explanation: The scenario involves moderate traffic with multiple lanes and vehicles on both sides, which requires careful monitoring. However, the weather is clear, and road conditions are good. Traffic is moving steadily, but the presence of vehicles in adjacent lanes necessitates attention to potential lane changes.

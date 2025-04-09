@@ -1,0 +1,3 @@
+Run on pedestrain scenario again, change historic pose data and see if vlm still wants to stop or also runs over
+
+compare challenging scenarios between zero-shot and transfuser

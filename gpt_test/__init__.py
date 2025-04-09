@@ -1,7 +1,15 @@
 import base64
-import os, sys
+import os
+import sys
 import json
-
+import hydra 
+import time
+import re
+import numpy as np
+from PIL import Image
+import io
+from .assistant import *
+from .prompt import *
 
 class bc:
     HEADER = '\033[95m'
@@ -18,7 +26,6 @@ class bc:
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
-    
 
 def read_imgs(imgs_dir, img_name=['his_-3_cam.jpg', 'his_-2_cam.jpg', 'his_-1_cam.jpg', 'cur_cam.jpg']):
     base64Frames = []
@@ -30,6 +37,8 @@ def read_imgs(imgs_dir, img_name=['his_-3_cam.jpg', 'his_-2_cam.jpg', 'his_-1_ca
         # print(f"read {img_path} {bc.OKGREEN}successfully{bc.ENDC}")
         base64Frames.append(encode_image(img_path))
     return base64Frames
+
+
 
 def combine_with_same_scene(uniad_path, vip3d_path):
     with open(uniad_path, 'r') as f:

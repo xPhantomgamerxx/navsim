@@ -1,0 +1,16 @@
+fix pose output so it generates next 8 waypoints, not just initial + next 7 (almost done, just need to create trajectory object lol whats so hard) (cant run large instance)
+    add heading to pose for the trajectory thing
+    something very wrong in my own integration function
+
+look into gpt for challenging scenarios, try some prompting things
+    find challenging scenarios wrt to autonomous driving! or just difficult in general
+    idk, questionable performance in the judgement of the scenarios, kinda doesnt know what frame is where wrt to ego vehicle, adding what camera is to the image could help?
+    
+add history frames into prediction pipeline to see if it affects performance
+
+look into data annotation pipeline for finetuning data
+
+could add more emphasis to pay attention to agents
+add preprocess for challenging scenarios -> give fewshot examples of what I think challenging scenario is etc
+check papers that have done finetuning of vlm for driving, eg. gptdriver
+

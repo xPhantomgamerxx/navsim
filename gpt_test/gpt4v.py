@@ -3,9 +3,9 @@ BASE_DIR = os.path.abspath(os.path.join( os.path.dirname( __file__ ), '..' ))
 sys.path.append(BASE_DIR)
 
 # prompt variables are inside here:
-from for_VLM.utils.prompt import *
-from for_VLM.utils import read_imgs, bc
 import time, fire
+
+from gpt_test import *
 
 from openai import OpenAI
 myapi_key = os.environ.get("OPENAI_API_KEY")

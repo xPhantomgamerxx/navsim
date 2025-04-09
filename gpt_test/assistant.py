@@ -1,4 +1,4 @@
-assistant1_imgs_dir = f"""
+assassistant1_imgs_dir = f"""
 /home/x_yiyan/x_yiyanj/code/gpt-4v_UniAD/output/vis/for_gpt_few_shots/trainval/3.2_2.8_[1, 2, 4, 5, 3]_43786cf95a7e4cf38378880b637cca08
 """
 

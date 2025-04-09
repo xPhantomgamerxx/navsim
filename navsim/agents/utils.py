@@ -294,7 +294,7 @@ def IntegrateCurvatureForPoints(curvatures, velocities_norm, initial_position, i
     x[1:] += x0
     y[1:] += y0
 
-    return np.stack((x, y), axis=1)
+    return np.stack((x, y, theta), axis=1)
 
 def WriteImageSequenceToVideo(cam_images_sequence: list, filename):
     assert len(cam_images_sequence) >= 1, "No images to write to video."

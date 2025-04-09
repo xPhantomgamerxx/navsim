@@ -1,0 +1,10 @@
+1. The most difficult to predict agents are: 
+- Construction cones (due to potential changes in road layout)
+- Vehicles merging from construction zones
+- Vehicles in adjacent lanes at the intersection
+
+Explanation: The construction cones suggest possible lane changes or roadwork, increasing unpredictability. Vehicles merging or changing lanes due to construction could behave unexpectedly. Vehicles in all lanes at the intersection may have irregular movement patterns due to traffic signals and congestion.
+
+2. Overall, the prediction difficulty of this scene is 7. 
+
+Explanation: The presence of construction indicates possible lane closures or shifts, and the intersection adds complexity with traffic signals and numerous vehicles. While it’s not an extreme weather condition or very dense urban environment, the potential for unpredictable vehicle behavior due to construction and intersections raises the difficulty level.

@@ -57,20 +57,21 @@ class DeepSeekAgent(AbstractAgent):
 
         return "DeepSeekAgent"
     
-    def initialize(self) -> None:
+    def initialize(self, method: str = "llm") -> None:
         """
         Initializes the DeepSeek Agent, loads the models and tokenizer
         """
         self.vlm_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(self._config.vlm_model)
         self.tokenizer = self.vlm_chat_processor.tokenizer
         self.vlm: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(self._config.vlm_model, trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16)
-        self.llm = pipeline("text-generation", model=self._config.llm_model, device_map="auto", max_new_tokens=4096)
+        if method == "llm":
+            self.llm = pipeline("text-generation", model=self._config.llm_model, device_map="auto", max_new_tokens=4096)
 
     def get_sensor_config(self) -> SensorConfig:
         """
         Returns the Sensor Configuration for the Agent
         """
-        return SensorConfig(cam_f0 = True, cam_l0=True, cam_l2=False, cam_r0=True, cam_r2=False, cam_b0=False, cam_l1= False, cam_r1=False, lidar_pc=False)
+        return SensorConfig(cam_f0 = True, cam_l0=True, cam_l1= False, cam_l2=False, cam_r0=True, cam_r1=False, cam_r2=False, cam_b0=False, lidar_pc=False)
     
     def compute_trajectory(self, agent_input: AgentInput, scene: Scene) -> Trajectory:
         """
@@ -85,6 +86,7 @@ class DeepSeekAgent(AbstractAgent):
         img_l = agent_input.cameras[-1].cam_l0.image
         img_r = agent_input.cameras[-1].cam_r0.image
         img = np.concatenate((img_l, img_c, img_r), axis=1)
+
         ego_history = scene.get_history_trajectory(num_trajectory_frames=10)
         trajectory = pose_to_vel_cur(ego_history.poses)
         command = agent_input.ego_statuses[scene.scene_metadata.num_history_frames-1].driving_command
@@ -95,6 +97,7 @@ class DeepSeekAgent(AbstractAgent):
             curr_command = "straight"
         elif np.array_equal(command, np.array([0,0,1,0])):
             curr_command = "right"
+
         prediction, speed_curvature_pred, scene_description, object_description, intent_description = GenerateMotion(
             current_image =     img, 
             past_waypoints =    ego_history.poses, 
@@ -102,21 +105,38 @@ class DeepSeekAgent(AbstractAgent):
             past_curvatures =   trajectory[:,1], 
             past_intent =       None, 
             chat_processor =    self.vlm_chat_processor, 
-            vlm =             self.vlm, 
-            llm =          self.llm, 
+            vlm =               self.vlm, 
+            llm =               self.llm, 
             tokenizer =         self.tokenizer, 
-            command =           curr_command
+            command =           curr_command,
             )
+        
+        if len(speed_curvature_pred) > 8:
+            speed_curvature_pred = speed_curvature_pred[-8:]
         pred_len = len(speed_curvature_pred)
         pred_curvatures = np.array(speed_curvature_pred)[:, 1] / 100
         pred_speeds = np.array(speed_curvature_pred)[:, 0]
         pred_traj = np.zeros((pred_len, 3))
-        
-        pred_traj[:pred_len, :2] = IntegrateCurvatureForPoints(pred_curvatures,pred_speeds,initial_pose,0, pred_len)
-        print(pred_traj)
-        poses = np.array(pred_traj)
-        traj = Trajectory(poses)
 
+
+        pred1 = IntegrateCurvatureForPoints(pred_curvatures, pred_speeds, initial_pose, 0, pred_len)
+        pred2 = integrate_curvature_velocity_to_waypoints(pred_curvatures, pred_speeds, initial_position=initial_pose, initial_heading=0)
+        pred3 = predict_future_waypoints(pred_speeds, pred_curvatures)
+
+        print(pred3.shape)
+        traj = Trajectory(pred3)
+        # pred_traj[:pred_len, :3] = IntegrateCurvatureForPoints(pred_curvatures,pred_speeds,initial_pose,0, pred_len)
+        # print(pred_traj)
+        # poses = np.array(pred_traj)
+        # traj = Trajectory(poses) # poses.shape (8,3) (x,y,heading in local frame) EXCLUDING INITIAL 0,0,0 pose
+
+        # return traj 
+        
+        # final_traj = pred_traj[:pred_len, :2]
+        # print(pred_traj)
+        # # poses = np.array(pred_traj[:pred_len, :2])
+        # traj = Trajectory(final_traj)
+        # print(" ")
         return traj
         
         
