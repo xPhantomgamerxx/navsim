@@ -21,3 +21,5 @@ dataset/
 exp/
 Janus/
 navsim/agents/transfuser/transfuser_seed_0.ckpt
+gpt_test/splits/
+gpt_test/jsons/

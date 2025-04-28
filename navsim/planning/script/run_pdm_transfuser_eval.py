@@ -1,35 +1,84 @@
-from typing import Any, Dict, List, Union, Tuple
-from pathlib import Path
-from dataclasses import asdict
-from datetime import datetime
 import traceback
 import logging
 import lzma
 import pickle
-import os
-import uuid
-
 import hydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig
+import os
+import re
+import ast
 import pandas as pd
 
-from nuplan.planning.script.builders.logging_builder import build_logger
-from nuplan.planning.utils.multithreading.worker_utils import worker_map
 
+from typing import Any, Dict, List, Union, Tuple
+from pathlib import Path
+from dataclasses import asdict
+from datetime import datetime
+from hydra.utils import instantiate
+from omegaconf import DictConfig
+from nuplan.planning.script.builders.logging_builder import build_logger
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.common.dataloader import SceneLoader, SceneFilter, MetricCacheLoader
-from navsim.common.dataclasses import SensorConfig
+from navsim.common.dataclasses import SensorConfig, Trajectory, AgentInput
 from navsim.evaluate.pdm_score import pdm_score
-from navsim.planning.script.builders.worker_pool_builder import build_worker
 from navsim.planning.simulation.planner.pdm_planner.simulation.pdm_simulator import PDMSimulator
 from navsim.planning.simulation.planner.pdm_planner.scoring.pdm_scorer import PDMScorer
 from navsim.planning.metric_caching.metric_cache import MetricCache
+from navsim.agents.deepseek.gpt_utils import *
+from openai import OpenAI
+from zoneinfo import ZoneInfo
+
 
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "config/pdm_scoring"
 CONFIG_NAME = "default_run_pdm_score"
+
+myapi_key = os.environ.get("OPENAI_API_KEY")
+if myapi_key is None:
+    print(f"Please set OPENAI_API_KEY in your environment variables.")
+    exit()
+client = OpenAI(api_key=myapi_key)
+
+def eval_trajectory(
+        trajectory: Trajectory,
+        input: AgentInput,
+        token: str,
+    ) -> Trajectory:
+    message = []
+    message.append({
+            "role": "developer",
+            "content": f"{system_message_v4}"}
+        )
+    imgs = [input.cameras[-1].cam_l0.image, input.cameras[-1].cam_f0.image, input.cameras[-1].cam_r0.image]
+    encoded_imgs = read_images(imgs)
+    image_content = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for enc in encoded_imgs] 
+    message.append({
+                "role": "user",
+                "content": [{
+                    "type": "text", "text": f"""This is the current trajectory given by the expert motion planner: {trajectory.poses} {correction_prompt}"""},
+                    *image_content,],
+                },
+            )
+    response = client.chat.completions.create(
+            model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC",
+            messages = message,
+            max_completion_tokens = 2048,
+            metadata={
+                "token": token,
+            },
+            store = True,
+        )
+    output = response.choices[0].message.content
+    pattern = r"No Improvement Necessary"
+    match = re.search(pattern, output, re.DOTALL)
+    if match: return trajectory
+    else: 
+        pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
+        match = re.search(pattern, output, re.DOTALL)
+        if match: poses = ast.literal_eval(match.group(1))
+        else:
+            raise ValueError("No match found in the output string.")
+    return Trajectory(poses)
 
 
 def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Dict[str, Any]]:
@@ -37,9 +86,6 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
     Helper function to run PDMS evaluation in.
     :param args: input arguments
     """
-    node_id = int(os.environ.get("NODE_RANK", 0))
-    thread_id = str(uuid.uuid4())
-    logger.info(f"Starting worker in thread_id={thread_id}, node_id={node_id}")
 
     log_names = [a["log_file"] for a in args]
     tokens = [t for a in args for t in a["tokens"]]
@@ -47,12 +93,10 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
 
     simulator: PDMSimulator = instantiate(cfg.simulator)
     scorer: PDMScorer = instantiate(cfg.scorer)
-    assert (
-        simulator.proposal_sampling == scorer.proposal_sampling
-    ), "Simulator and scorer proposal sampling has to be identical"
+    assert (simulator.proposal_sampling == scorer.proposal_sampling), "Simulator and scorer proposal sampling has to be identical"
     agent: AbstractAgent = instantiate(cfg.agent)
     agent.initialize()
-
+    
     metric_cache_loader = MetricCacheLoader(Path(cfg.metric_cache_path))
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
     scene_filter.log_names = log_names
@@ -68,35 +112,45 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
     pdm_results: List[Dict[str, Any]] = []
     for idx, (token) in enumerate(tokens_to_evaluate):
         logger.info(
-            f"Processing scenario {idx + 1} / {len(tokens_to_evaluate)} in thread_id={thread_id}, node_id={node_id}, token={token}"
+            f"Processing scenario {idx + 1} / {len(tokens_to_evaluate)}, token={token}"
         )
-        score_row: Dict[str, Any] = {"token": token, "valid": True}
+        orig_score_row: Dict[str, Any] = {"token": token, "valid": True}
+        improved_score_row: Dict[str, Any] = {"token": token, "valid": True}
         try:
             metric_cache_path = metric_cache_loader.metric_cache_paths[token]
             with lzma.open(metric_cache_path, "rb") as f:
                 metric_cache: MetricCache = pickle.load(f)
 
             agent_input = scene_loader.get_agent_input_from_token(token)
-            if agent.requires_scene:
-                scene = scene_loader.get_scene_from_token(token)
-                trajectory = agent.compute_trajectory(agent_input, scene)
-            else:
-                trajectory = agent.compute_trajectory(agent_input)
+            # scene = scene_loader.get_scene_from_token(token)
+            trajectory = agent.compute_trajectory(agent_input)
 
-            pdm_result = pdm_score(
+            improved_trajectory = eval_trajectory(trajectory, agent_input, token)
+
+            original_pdm_result = pdm_score(
                 metric_cache=metric_cache,
                 model_trajectory=trajectory,
                 future_sampling=simulator.proposal_sampling,
                 simulator=simulator,
                 scorer=scorer,
             )
-            score_row.update(asdict(pdm_result))
+            improved_pdm_result = pdm_score(
+                metric_cache=metric_cache,
+                model_trajectory=improved_trajectory,
+                future_sampling=simulator.proposal_sampling,
+                simulator=simulator,
+                scorer=scorer,
+            )
+            orig_score_row.update(asdict(original_pdm_result))
+            improved_score_row.updat(asdict(improved_pdm_result))
+            print(orig_score_row)
+            print(improved_score_row)
         except Exception as e:
             logger.warning(f"----------- Agent failed for token {token}:")
             traceback.print_exc()
-            score_row["valid"] = False
+            orig_score_row["valid"] = False
 
-        pdm_results.append(score_row)
+        pdm_results.append(orig_score_row)
     return pdm_results
 
 
@@ -108,10 +162,7 @@ def main(cfg: DictConfig) -> None:
     """
 
     build_logger(cfg)
-    worker = build_worker(cfg)
 
-    # Extract scenes based on scene-loader to know which tokens to distribute across workers
-    # TODO: infer the tokens per log from metadata, to not have to load metric cache and scenes here
     scene_loader = SceneLoader(
         sensor_blobs_path=None,
         data_path=Path(cfg.navsim_log_path),
@@ -137,7 +188,7 @@ def main(cfg: DictConfig) -> None:
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
 
-    score_rows: List[Tuple[Dict[str, Any], int, int]] = worker_map(worker, run_pdm_score, data_points)
+    score_rows = run_pdm_score(data_points)
 
     pdm_score_df = pd.DataFrame(score_rows)
     num_sucessful_scenarios = pdm_score_df["valid"].sum()
@@ -148,7 +199,7 @@ def main(cfg: DictConfig) -> None:
     pdm_score_df.loc[len(pdm_score_df)] = average_row
 
     save_path = Path(cfg.output_dir)
-    timestamp = datetime.now().strftime("%Y.%m.%d.%H.%M.%S")
+    timestamp = datetime.now(ZoneInfo("Europe/Stockholm")).strftime("%Y.%m.%d.%H.%M.%S")
     pdm_score_df.to_csv(save_path / f"{timestamp}.csv")
 
     logger.info(

@@ -1,16 +1,33 @@
-fix pose output so it generates next 8 waypoints, not just initial + next 7 (almost done, just need to create trajectory object lol whats so hard) (cant run large instance)
-    add heading to pose for the trajectory thing
-    something very wrong in my own integration function
-
-look into gpt for challenging scenarios, try some prompting things
+look into gpt for challenging scenarios, try some prompting things (done?)
     find challenging scenarios wrt to autonomous driving! or just difficult in general
     idk, questionable performance in the judgement of the scenarios, kinda doesnt know what frame is where wrt to ego vehicle, adding what camera is to the image could help?
     
-add history frames into prediction pipeline to see if it affects performance
+add history frames into prediction pipeline to see if it affects performance (shouldnt be too hard)
 
-look into data annotation pipeline for finetuning data
+For finetuning: 
+    System message, finetuned model for driving prediction 
+    give normal input 
+    assistant response would be ground truth of the future trajectory for that scene, convert waypoints, to get speed vel values
+    can set up script to do this 
 
-could add more emphasis to pay attention to agents
-add preprocess for challenging scenarios -> give fewshot examples of what I think challenging scenario is etc
-check papers that have done finetuning of vlm for driving, eg. gptdriver
+    questions:
+        currently im asking to provide {scene_description_prompt} {object_description_prompt} {intent_description_prompt} before predicting speed and curvature
+        -for finetuning data, include this? use gpt to describe images, but then use ground truth to get the speed and curvatures?
+        -need to convert the groundtruth waypoint data to speed and curvature predictions before using it in the finetuning datasplit
 
+    concerns about weighting of output with descriptions vs values
+
+
+continue with cur vel calculation from poses, then run the finetuning data generation
+-----
+
+hard cases?
+
+use vlm agent as evaluation step for checking where transfuser fails
+
+maybe something wrong in trajectory generation? seems to be so bad for simple scenarios, check output of ft model, need more money for that as logs aren't saved somehow
+
+
+thoughts for correcting transfuser trajectory:
+    should I convert to speed and curvature first? could introduce errors, otherwise it might have no idea what the waypoints mean
+    

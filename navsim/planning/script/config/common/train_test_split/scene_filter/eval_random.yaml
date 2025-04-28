@@ -1,0 +1,63 @@
+_target_: navsim.common.dataclasses.SceneFilter
+_convert_: 'all'
+
+num_history_frames: 4
+num_future_frames: 10
+frame_interval: 1
+has_route: true
+
+max_scenes: Null 
+log_names: Null
+
+
+tokens:
+ - '43066c8c8e325fcf'
+ - '7a7e8074ee5c5389'
+ - 'e7cfffa4e8dd53a8'
+ - '6fcec1c4552351ed'
+ - '8ddb6763987051ba'
+ - 'f2e0d7e15fa253f0'
+ - 'c2a93dd3494b5702'
+ - '6c321000d6c0527a'
+ - '7f62e2a838405444'
+ - 'b9633d9afd4356a8'
+ - '9215943615c45afd'
+ - 'ab313e9e217c581b'
+ - 'b9182baaae3b5ab2'
+ - '7f9f4661a4875959'
+ - 'e0164d976037592c'
+ - '2959d5dbe8235765'
+ - '458ab847ffa957e8'
+ - '83c7a6c3c0b15b36'
+ - 'eb5989e21dc35a47'
+ - 'b4aeb4bbd9035964'
+ - '80957a180a325353'
+ - '26e7a31dd615509c'
+ - 'b3de35a12e36586c'
+ - 'e49a1ec4a5af596b'
+ - 'a164681774715cea'
+ - '36077daf1cda5d05'
+ - 'bc2fe3314b345c63'
+ - 'b02be1e28abb59f1'
+ - '76b3e192b5e45727'
+ - 'df8bff51c1d95e09'
+ - '6b0ff02cbbf25aa3'
+ - '6b8daf3b57175e70'
+ - '96f6cde1205e5865'
+ - '3e8c8729205850ab'
+ - 'e194cef299cf5264'
+ - '784c48e2a44c5036'
+ - '8eda03e314a456a4'
+ - 'd4ac0a1865ac5c25'
+ - 'b619e01b47775ec5'
+ - '6922b2ea23cd51a3'
+ - '72c898c5c6a45939'
+ - '92bbb17b853a5aa2'
+ - '4566a3d9b5e95d9b'
+ - '016d6a913efa5ff1'
+ - '1b35b775c4a95647'
+ - '48321ca34be254e5'
+ - '9b7108902e7158d6'
+ - '13ba9275e341525b'
+ - '6704953640e55b83'
+ - 'e0e228212a655d7f'

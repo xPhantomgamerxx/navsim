@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: eval_challenging 
+
+data_split: test

@@ -60,7 +60,6 @@ def _get_token_imgs(scene_loader, token):
     images = _get_image_arrays(scene_loader.get_agent_input_from_token(token))
     return _read_images(images)
 
-
 def _get_client_response(token = None, temperature: int = 0, scene_loader = None, provide_few_shot: bool = False):
     agent_input = scene_loader.get_agent_input_from_token(token)
     # scene = scene_loader.get_scene_from_token(token)
@@ -88,19 +87,13 @@ def _get_client_response(token = None, temperature: int = 0, scene_loader = None
         "role": "user",
         "content": [{"type": "input_text", "text":"Evaluate how challenging this driving scenario is"},*images_content,],},
     )
-
-    ticc = time.time()
-    with open("jsons/prompt.json", "w") as f:
-        json.dump(message,f, indent=4)
-        
+  
     response = client.responses.create(
         model="gpt-4o",
         input=message,
         max_output_tokens=1024,
         # temperature=0, # can either use temperature[0,2] or top_p [0,1]
     )
-
-    print(f"GPT response time: {time.time()-ticc}")
     
     return response
 
@@ -117,18 +110,17 @@ def main(cfg):
 
     tokens = list(set(scene_loader.tokens) & set(metric_cache_loader.tokens))
     eval_tokens = []
-    with open("jsons/tokens.jsonl", "r") as f:
+    with open("/home/ubuntu/project_ws/navsim/gpt_test/jsons/tokens.jsonl", "r") as f:
         for line in f:
             data = json.loads(line)
             eval_tokens.append(data["token"])
     # loop through number of randomly sampled tokens and get difficulties of scenarios
     # EACH QUERY COSTS 0.03 USD (32 IMAGES + TEXT QUERY TOKENS AND SO)
-    for i in tqdm(range(1)):  
-        # token = np.random.choice(tokens)
-        # if token in eval_tokens:
-        #     continue 
-        token = "358d973661955d68"
-        # eval_tokens.append(token)
+    for i in tqdm(range(201)):  
+        token = np.random.choice(tokens)
+        if token in eval_tokens:
+            continue 
+        eval_tokens.append(token)
         full_response = _get_client_response(token=token, scene_loader=scene_loader, provide_few_shot=True)
         scenario_description = full_response.output[0].content[0].text
         match = re.search(r"2\. Overall, the prediction difficulty of this scene is\s+(\d+)", scenario_description)
@@ -141,10 +133,10 @@ def main(cfg):
             "token": token,
             "explanation": scenario_description,
         }
-        # print(f"Iteration: {i}, Difficulty: {difficulty}")
-        with open("jsons/tokens.jsonl", "a") as e:
+        print(f"Iteration: {i}, Difficulty: {difficulty}")
+        with open("/home/ubuntu/project_ws/navsim/gpt_test/jsons/tokens.jsonl", "a") as e:
             e.write(json.dumps({"token":token})+ "\n")
-        with open("jsons/difficulties.jsonl", "a") as f:
+        with open("/home/ubuntu/project_ws/navsim/gpt_test/jsons/difficulties.jsonl", "a") as f:
             f.write(json.dumps(data) + "\n")
        
 

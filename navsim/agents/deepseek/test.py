@@ -1,3 +1,8 @@
-smth = [1,2,3,4,5,6,7,8,9,0]
+from openai import OpenAI
+client = OpenAI()
 
-print(smth[-8:])
+response = client.responses.retrieve("resp_67fd1791ed5c8191a57a84e2ca5baf9e0686a98c3fdeed86")
+print(response)
+
+
+

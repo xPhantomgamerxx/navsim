@@ -11,6 +11,9 @@ import pytz
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import io
+import base64
+
 
 from math import atan2
 from datetime import datetime
@@ -20,6 +23,7 @@ from Janus.janus.utils.io import load_pil_images
 from navsim.agents.utils import EstimateCurvatureFromTrajectory, IntegrateCurvatureForPoints, OverlayTrajectory, WriteImageSequenceToVideo
 from navsim.agents.deepseek.deepseek_config import DeepSeekConfig
 from scipy.integrate import cumulative_trapezoid
+from PIL import Image
 
 
 def vlm_inference(
@@ -380,3 +384,57 @@ def predict_future_waypoints(pred_speeds, pred_curvatures, initial_pose = [0,0,0
     waypoints.append([x, y, theta])
     final = np.array(waypoints)
     return final[-8:,:]
+
+def read_images(imgs_list:list):
+    base64_images = []
+    for img in imgs_list:
+        # Convert to PIL image
+        pil_img = Image.fromarray(img, mode='RGB')
+
+        # Encode to JPEG in memory
+        buffer = io.BytesIO()
+        pil_img.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        # Convert to base64
+        img_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+        base64_images.append(img_base64)
+        # if I want to use later
+        # img_tag = f"data:image/jpeg;base64,{img_base64}" # URL base64 encoding for finetuning dataset JSON
+    return base64_images
+
+system_message = f"""
+You are an advanced autonomous driving labeller, with access to these three front view images.
+They are presented in this order: front-left, front, front-right.
+For all following prompts, you need to imagine you are driving the ego vehicle, then reason about the images like a human driver would, and respond with the level of detail needed for a self-driving car to understand the scene.
+
+Respond in the following format:
+Scene description: <description>
+Object description: <description>
+Intent description: <description>
+Prediction: <explanation>
+Values: [[speed_1, curvature_1], [speed_2, curvature_2], ..., [speed_8, curvature_8]]
+"""
+
+scene_description_prompt = f"""
+Describe the provided scene according the most noteworthy elements in the scene that would influence the behaviour of a self-driving car. 
+This could include the road layout, road markings, traffic signs, traffic signals, nearby vehicles and pedestrians, environmental conditions and anything else noteworthy."""
+
+object_description_prompt = f"""
+Describe the most important agents in the scene that you should be paying attention to as a self driving car.
+List the most important ones, specifying their location within the driving scene and provide a short description of what that road user is doing, and why it is important to pay attention to.
+"""
+
+intent_description_prompt = f"""
+ is the high-level navigation goal that has been given.
+Based on the lane markings, the movement of the other agents in the scene and the high-level navigation goal, describe the current best low-level course of action for you to take as a driver.
+Is it going to follow the lane to turn left, turn right, or go straight? 
+Should it maintain the current speed or slow down or speed up?
+"""
+
+prediction_prompt = f"""
+They are given in the format of [[speed_1, curvature_1],...,[speed_9,curvature_9]] with a positive curvature for left turn, negative curvature for right turn, where the last entry is the last known speed and curvature.
+Taking the given images and all of the descriptions into account, predict the next 8 curvature and velocity pairs that describe the optimal driving path. 
+Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8] in the style of a python tuple. 
+The predicted speed and curvature should continue from where the past values left off. 
+"""

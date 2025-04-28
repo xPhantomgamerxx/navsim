@@ -17,5 +17,3 @@ with open("/home/ubuntu/project_ws/navsim/gpt_test/jsons/difficulties.jsonl", 'r
             outfile.write('\n')
             tokenfile.write('\n')
       
-
-

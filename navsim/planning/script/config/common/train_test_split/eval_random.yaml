@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: eval_random
+
+data_split: test
