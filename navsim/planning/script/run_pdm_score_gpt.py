@@ -6,6 +6,7 @@ import traceback
 import logging
 import lzma
 import pickle
+import json
 
 import hydra
 from hydra.utils import instantiate
@@ -70,8 +71,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             agent_input = scene_loader.get_agent_input_from_token(token)
             
             scene = scene_loader.get_scene_from_token(token)
-            trajectory = agent.compute_trajectory(agent_input, scene)
-
+            trajectory , response = agent.compute_trajectory(agent_input, scene)
             pdm_result = pdm_score(
                 metric_cache=metric_cache,
                 model_trajectory=trajectory,
@@ -81,6 +81,22 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             )
             score_row.update(asdict(pdm_result))
             print(score_row)
+            save_path = Path(cfg.output_dir)
+            data = {
+                "token": token,
+                "trajectory": trajectory.poses.tolist(),
+                "score": { "no_at_fault_collisions": pdm_result.no_at_fault_collisions,
+                            "drivable_area_compliance": pdm_result.drivable_area_compliance,
+                            "ego_progress": pdm_result.ego_progress,
+                            "time_to_collision_within_bound": pdm_result.time_to_collision_within_bound,
+                            "comfort": pdm_result.comfort,
+                            "driving_direction_compliance": pdm_result.driving_direction_compliance,
+                            "score": pdm_result.score,},
+                "response": response,
+            }
+            with open(f"{save_path}/trajs.jsonl", "a") as f:
+                json.dump(data, f)
+                f.write("\n")
         except Exception as e:
             logger.warning(f"----------- Agent failed for token {token}:")
             traceback.print_exc()

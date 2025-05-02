@@ -25,9 +25,24 @@ hard cases?
 
 use vlm agent as evaluation step for checking where transfuser fails
 
-maybe something wrong in trajectory generation? seems to be so bad for simple scenarios, check output of ft model, need more money for that as logs aren't saved somehow
+maybe something wrong in trajectory generation? seems to be so bad for simple scenarios, check output of ft model, need more money for that as logs aren't saved somehow /// SHOULD be fine?!
 
+----
 
 thoughts for correcting transfuser trajectory:
     should I convert to speed and curvature first? could introduce errors, otherwise it might have no idea what the waypoints mean
-    
+
+experiments to run: 
+    - (use finetuned model in openemma to visualize trajectory in first person)
+    - visualize trajectories in navsim using ipynb
+    - just normal tables like in other papers
+    - Include transfuser and improved trajectories?
+        - show where vlms can come in in evaluation? or how they can interpret images better than learnt models
+
+    - NeuroNCAP? use that to cook up some new funky scenarios?
+
+
+TEST GPT with just waypoints, not converted to speed curvature, seems to be able to understand quite well
+
+
+history frames, in both inference and trajectory evaluation

@@ -43,7 +43,25 @@ def eval_trajectory(
         trajectory: Trajectory,
         input: AgentInput,
         token: str,
-    ) -> Trajectory:
+        convert: bool = False,
+    ) -> List[Trajectory, bool]:
+    """
+    Evaluates the given trajectory using GPT to see if we can improve it
+    
+    Args
+    -
+    trajectory : Trajectory
+        Trajectory to be evaluated
+    input : AgentInput
+        AgentInput object 
+    token : str
+        Scenario token for metadata
+        
+    Returns
+    -
+    trajectory : List[Trajectory, bool]
+        Trajectory object with possibly improved trajectory, bool to indicate if trajectory improvement was needed
+    """
     message = []
     message.append({
             "role": "developer",
@@ -52,13 +70,17 @@ def eval_trajectory(
     imgs = [input.cameras[-1].cam_l0.image, input.cameras[-1].cam_f0.image, input.cameras[-1].cam_r0.image]
     encoded_imgs = read_images(imgs)
     image_content = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for enc in encoded_imgs] 
+    converted_poses = pose_to_vel_cur(trajectory.poses)
+    if convert: input_poses, prompt = converted_poses, correction_prompt_v2
+    else: input_poses, prompt = trajectory.poses, correction_prompt
     message.append({
                 "role": "user",
                 "content": [{
-                    "type": "text", "text": f"""This is the current trajectory given by the expert motion planner: {trajectory.poses} {correction_prompt}"""},
+                    "type": "text", "text": f"""This is the current trajectory given by the expert motion planner: {input_poses} {prompt}"""},
                     *image_content,],
                 },
             )
+    
     response = client.chat.completions.create(
             model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC",
             messages = message,
@@ -71,20 +93,29 @@ def eval_trajectory(
     output = response.choices[0].message.content
     pattern = r"No Improvement Necessary"
     match = re.search(pattern, output, re.DOTALL)
-    if match: return trajectory
+    if match: return [trajectory, False]
     else: 
         pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
         match = re.search(pattern, output, re.DOTALL)
         if match: poses = ast.literal_eval(match.group(1))
         else:
             raise ValueError("No match found in the output string.")
-    return Trajectory(poses)
+    return [Trajectory(poses), True]
 
 
 def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Dict[str, Any]]:
     """
     Helper function to run PDMS evaluation in.
-    :param args: input arguments
+
+    Args
+    ----------
+    args: List[Dict[str, Union[List[str], DictConfig]]]
+        input arguments for function
+    
+    Returns
+    ----------
+    pdm_results: List[Dict[str,Any]]
+        List with dict of pdm results for all evaluation scenarios
     """
 
     log_names = [a["log_file"] for a in args]
@@ -125,7 +156,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             # scene = scene_loader.get_scene_from_token(token)
             trajectory = agent.compute_trajectory(agent_input)
 
-            improved_trajectory = eval_trajectory(trajectory, agent_input, token)
+            improved_trajectory, needed = eval_trajectory(trajectory, agent_input, token)
 
             original_pdm_result = pdm_score(
                 metric_cache=metric_cache,
@@ -134,17 +165,18 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
                 simulator=simulator,
                 scorer=scorer,
             )
-            improved_pdm_result = pdm_score(
-                metric_cache=metric_cache,
-                model_trajectory=improved_trajectory,
-                future_sampling=simulator.proposal_sampling,
-                simulator=simulator,
-                scorer=scorer,
-            )
             orig_score_row.update(asdict(original_pdm_result))
-            improved_score_row.updat(asdict(improved_pdm_result))
             print(orig_score_row)
-            print(improved_score_row)
+            if needed: 
+                improved_pdm_result = pdm_score(
+                    metric_cache=metric_cache,
+                    model_trajectory=improved_trajectory,
+                    future_sampling=simulator.proposal_sampling,
+                    simulator=simulator,
+                    scorer=scorer,
+                )
+                improved_score_row.update(asdict(improved_pdm_result))
+                print(improved_score_row)
         except Exception as e:
             logger.warning(f"----------- Agent failed for token {token}:")
             traceback.print_exc()
@@ -157,8 +189,15 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig) -> None:
     """
-    Main entrypoint for running PDMS evaluation.
-    :param cfg: omegaconf dictionary
+    Main function for running PDMS evaluation
+    
+    Args
+    ----------
+    cfg : omegaConf dictionary
+
+    Returns
+    ----------
+    None
     """
 
     build_logger(cfg)

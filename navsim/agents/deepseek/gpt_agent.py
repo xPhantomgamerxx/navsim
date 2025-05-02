@@ -50,17 +50,38 @@ class GPTAgent(AbstractAgent):
             command,
             token,
             gpt_model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # "gpt-4.1"
-            ):
+        ):
+        """
+        Function that builds the prompt from the given information and then calls the OpenAI API to get the trajectory prediction.
+        
+        Args
+        -
+        imgs: list[Image]
+            list of images from frame t0 [0], t-1 [1], t-2 [2], t-3 [3]
+        past_vel_cur: str
+            string of the past velocities and curvatures
+        command: str
+            high level driving goal/command
+        token: str
+            token for current scene
+        gpt_model: str
+            gpt model to use
+        """
         message = []
-        encoded_images = read_images(imgs)
-        image_content = [{
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for enc in encoded_images
-        ]
         message.append({
             "role": "developer",
-            "content": f"{system_message_v2}"}
+            "content": f"{system_message_history_frames}"}
         )
+        image_content = []
+        encoded_img_timeframes = []
+        for timeframe in imgs:
+            encoded_images = read_images(timeframe)
+            encoded_img_timeframes.append(encoded_images)
+        
+        image_content.extend([{
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
+            ])
         
         message.append({
             "role": "user",
@@ -110,6 +131,22 @@ class GPTAgent(AbstractAgent):
             command,
             token,
             ):
+        """
+        Function to generate the motion prediction of the vehicle using the GPT API
+        
+        Args
+        -
+        curr_imgs: list[Image]
+            list of images from current frame [0], t-1 [1], t-2 [2], t-3 [3]
+        past_velocities: list[float]
+            list of the past velocities
+        past_curvatures: list[float]
+            list of the past curvatures
+        command: str
+            high level driving goal/command
+        token: str
+            token for current scene
+        """
         # past_curvatures = past_curvatures * 100
         past_speed_curvature_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in zip(past_velocities, past_curvatures)]
         past_speed_curvature_str = ", ".join(past_speed_curvature_str)
@@ -121,22 +158,57 @@ class GPTAgent(AbstractAgent):
         if match: vel_cur_preds = ast.literal_eval(match.group(1))
         else:
             raise ValueError("No match found in the output string.")
-        return vel_cur_preds
+        return vel_cur_preds, output
     
     def compute_trajectory(self, agent_input: AgentInput, scene: Scene) -> Trajectory: 
-        imgs = [
+        """
+        Agent function to compute trajectory of ego vehicle in given scene.
+        
+        Args
+        -
+        self: class
+            agent object
+        agent_input: AgentInput
+            scene data that is available for the agent to use for the trajectory prediction
+        scene: Scene
+            scene object that contains the scene history metadata
+            
+        Returns
+        -
+        trajectory: Trajectory
+            the predicted trajectory in the Trajectory object
+        response: str
+            The response of the Model
+            """
+        imgs_t0 = [
             agent_input.cameras[-1].cam_l0.image,
             agent_input.cameras[-1].cam_f0.image,
             agent_input.cameras[-1].cam_r0.image,
             ]
+        imgs_t1 = [
+            agent_input.cameras[-2].cam_l0.image,
+            agent_input.cameras[-2].cam_f0.image,
+            agent_input.cameras[-2].cam_r0.image,
+            ]
+        imgs_t2 = [
+            agent_input.cameras[-3].cam_l0.image,
+            agent_input.cameras[-3].cam_f0.image,
+            agent_input.cameras[-3].cam_r0.image,
+            ]
+        imgs_t3 = [
+            agent_input.cameras[-4].cam_l0.image,
+            agent_input.cameras[-4].cam_f0.image,
+            agent_input.cameras[-4].cam_r0.image,
+            ]
+        imgs = [imgs_t0, imgs_t1, imgs_t2, imgs_t3]
         curr_frame = scene.scene_metadata.num_history_frames-1
         ego_history = scene.get_history_trajectory()
+        ego_poses = ego_history.poses
         trajectory = pose_to_vel_cur(ego_history.poses)
         command = agent_input.ego_statuses[curr_frame].driving_command
         command = self.command_map.get(tuple(command)) # possibly introduces problem
-        # initial_pose = agent_input.ego_statuses[curr_frame].ego_pose
 
-        vel_cur_pred = self.generate_motion(
+        vel_cur_pred, response = self.generate_motion(
             curr_imgs = imgs, 
             past_velocities=trajectory[:,0],
             past_curvatures= trajectory[:,1],
@@ -144,8 +216,9 @@ class GPTAgent(AbstractAgent):
             token= scene.scene_metadata.initial_token,
             )
         
-        pred_curvatures = np.array(vel_cur_pred)[:, 1] / 100
         pred_speeds = np.array(vel_cur_pred)[:, 0]
-        pred = predict_future_waypoints(pred_speeds, pred_curvatures)
-        traj = Trajectory(pred)
-        return traj
+        pred_curvatures = np.array(vel_cur_pred)[:, 1] / 100
+        # pred = predict_future_waypoints(pred_speeds, pred_curvatures)
+        pred = predict_future_waypoints_rk4(pred_speeds, pred_curvatures)
+        traj = Trajectory(pred[1:])
+        return traj, response

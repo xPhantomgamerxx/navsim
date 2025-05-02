@@ -255,4 +255,16 @@ TRAJECTORY_CONFIG: Dict[str, Any] = {
         "marker_edge_color": "black",
         "zorder": 3,
     },
+    "other": {
+        "fill_color": NEW_TAB_10[1],
+        "fill_color_alpha": 1.0,
+        "line_color": NEW_TAB_10[1],
+        "line_color_alpha": 1.0,
+        "line_width": 1.0,
+        "line_style": "-",
+        "marker": ".",
+        "marker_size":0.0,
+        "marker_edge_color": "black",
+        "zorder": 3,
+    },
 }

@@ -14,6 +14,7 @@ from navsim.common.dataclasses import Scene
 from navsim.visualization.config import BEV_PLOT_CONFIG, TRAJECTORY_CONFIG, CAMERAS_PLOT_CONFIG
 from navsim.visualization.bev import add_configured_bev_on_ax, add_trajectory_to_bev_ax, add_map_to_bev_ax, add_annotations_to_bev_ax_with_offset, add_trajectory_to_bev_ax_with_offset
 from navsim.visualization.camera import add_annotations_to_camera_ax, add_lidar_to_camera_ax, add_camera_ax
+from navsim.common.dataclasses import Trajectory
 
 def transform_pose(pose_ego,transform_global):
     """
@@ -144,7 +145,7 @@ def plot_bev_frame(scene: Scene, frame_idx: int) -> Tuple[plt.Figure, plt.Axes]:
     return fig, ax
 
 
-def plot_bev_with_agent(scene: Scene, agent: AbstractAgent) -> Tuple[plt.Figure, plt.Axes]:
+def plot_bev_with_agent(scene: Scene, agent: AbstractAgent, traj = []) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots agent and human trajectory in birds-eye-view visualization
     :param scene: navsim scene dataclass
@@ -157,11 +158,13 @@ def plot_bev_with_agent(scene: Scene, agent: AbstractAgent) -> Tuple[plt.Figure,
         agent_trajectory = agent.compute_trajectory(scene.get_agent_input(), scene)
     else:
         agent_trajectory = agent.compute_trajectory(scene.get_agent_input())
+    if len(traj) != 0: other_trajectory = Trajectory(traj)
     frame_idx = scene.scene_metadata.num_history_frames - 1
     fig, ax = plt.subplots(1, 1, figsize=BEV_PLOT_CONFIG["figure_size"])
     add_configured_bev_on_ax(ax, scene.map_api, scene.frames[frame_idx])
     add_trajectory_to_bev_ax(ax, human_trajectory, TRAJECTORY_CONFIG["human"])
     add_trajectory_to_bev_ax(ax, agent_trajectory, TRAJECTORY_CONFIG["agent"])
+    if len(traj) != 0: add_trajectory_to_bev_ax(ax, other_trajectory, TRAJECTORY_CONFIG["other"])
     configure_bev_ax(ax)
     configure_ax(ax)
 

@@ -13,44 +13,37 @@ def pose_to_vel_cur(
     dt: float = 0.5,
     velocity_threshold: float = 0.2,
     scale_curvature: float = 100.0,
-    min_triangle_area: float = 0.01,   # [m²]
+    min_triangle_area: float = 0.01,
 ) -> np.ndarray:
     """
-    Convert a history of SE(2) poses [x, y, heading] in **AV coordinates**
-    into [[speed, curvature], …].
+    Convert a history of poses [x, y, heading] in AV coordinates into [[speed, curvature], ...].
 
-    Curvature sign: left/CCW  → negative  (matches AV convention).
-    Curvature units: scale_curvature x (1 / radius)  [dimensionless].
-
-    Parameters
+    Args
     ----------
     poses : (N,3) array_like
         Past N ego poses in chronological order.
     dt : float, default 0.5
-        Constant sample period between consecutive poses [s].
+        Constant sample period between consecutive poses
     velocity_threshold : float, default 0.2
-        Speeds below this are treated as stopped ⇒ curvature = 0.
+        Speeds below this are treated as stopped, curvature = 0.
     scale_curvature : float, default 100
-        Multiplicative factor to avoid floating‑point underflow.
+        Multiplicative factor to avoid floating-point underflow.
 
     Returns
     -------
-    np.ndarray, shape (N1, 2)
-        Column-0 → speed  [m*s⁻¹]  
+    np.ndarray, shape (N, 2)
+        Column-0 → speed  [m/s]  
         Column-1 → scaled curvature  (negative = left, positive = right)
     """
-    if poses.shape[0] < 2 or poses.shape[1] < 2:
-        raise ValueError("Need at least two 2‑D poses [x, y, …]")
-
     n = poses.shape[0]
     velocities = np.empty(n - 1, dtype=float)
     curvatures = np.empty(n - 1, dtype=float)
 
-    # ── speed ────────────────────────────────────────────────────────────
+    # speed 
     diffs = poses[1:, :2] - poses[:-1, :2]
     velocities[:] = np.hypot(diffs[:, 0], diffs[:, 1]) / dt
 
-    # ── curvature with area guard ───────────────────────────────────────
+    # curvature 
     for i in range(1, n):
         if i == 1:
             kappa = 0.0
@@ -73,7 +66,7 @@ def pose_to_vel_cur(
             area_sq = s * (s - a) * (s - b) * (s - c)
             area = np.sqrt(max(area_sq, 0.0))
 
-            # NEW: minimum‑area guard
+            # minimum‑area guard
             if area < min_triangle_area:
                 kappa = 0.0
             else:
@@ -86,41 +79,11 @@ def pose_to_vel_cur(
 
         curvatures[i - 1] = kappa * scale_curvature
 
-    # optional smoothing: copy second κ into first slot
     if n > 2:
         curvatures[0] = curvatures[1]
 
     return np.column_stack((velocities, curvatures))
 
-def integrate_curvature_velocity_to_waypoints(curvatures,velocities,dt=0.5,initial_position=(0.0, 0.0),initial_heading=0.0):
-
-    curvatures = np.array(curvatures).flatten()
-    velocities = np.array(velocities).flatten()
-    
-    t = np.arange(len(curvatures)) * dt
-
-    # Integrate heading using trapezoidal rule
-    theta = cumulative_trapezoid(curvatures * velocities, t, initial=initial_heading)
-
-    # Compute velocity components
-    v_x = velocities * np.cos(theta)
-    v_y = velocities * np.sin(theta)
-
-    # Integrate position using trapezoid for first N-1 steps
-    x = cumulative_trapezoid(v_x, t, initial=initial_position[0])
-    y = cumulative_trapezoid(v_y, t, initial=initial_position[1])
-
-    # Do an explicit Euler step to get the final waypoint
-    x_final = x[-1] + v_x[-1] * dt
-    y_final = y[-1] + v_y[-1] * dt
-
-    # Stack waypoints: 7 from trapezoid + 1 from final step
-    waypoints = np.vstack([
-        np.stack((x[1:], y[1:]), axis=1),  # first 7 waypoints
-        np.array([x_final, y_final])       # 8th waypoint
-    ])
-    waypoints = np.concatenate((waypoints, theta.reshape(8, 1)), axis=1)  # Add heading
-    return waypoints
 
 def predict_future_waypoints(pred_speeds, pred_curvatures, initial_pose = [0,0,0], dt=0.5):
     speeds = np.array(pred_speeds)
@@ -173,6 +136,22 @@ def predict_future_waypoints(pred_speeds, pred_curvatures, initial_pose = [0,0,0
 def predict_future_waypoints_rk4(speeds, curvatures, initial_pose=[0,0,0], dt=0.5):
     """
     4th-order Runge-Kutta integrator
+
+    Args
+    ----------
+    speeds : (N,) array_like
+        speeds in m/s
+    curvatures : (N,) array_like
+        curvatures in 1/m
+    initial_pose : (3,) array_like
+        initial pose [x,y,theta] is basically always [0,0,0]
+    dt : float
+        timestep between frames, is always 0.5s
+
+    Returns
+    ----------
+    waypoints : (N,3) np.ndarray
+        waypoints in format of [[x,y,heading], ...]
     """
     speeds = np.asarray(speeds, dtype=float)
     curvatures = np.asarray(curvatures, dtype=float)
@@ -221,6 +200,19 @@ def predict_future_waypoints_rk4(speeds, curvatures, initial_pose=[0,0,0], dt=0.
     return np.array(waypoints)
 
 def read_images(imgs_list:list):
+    """
+    Converts the list of given images to base64 url encoding
+    
+    Args
+    ----------
+    imgs_list : (N,) np.ndarray
+        list of images in RGB format
+        
+    Returns
+    ----------
+    imgs : (N,) array_like
+        list of images converted to base64 url encoding
+    """
     base64_images = []
     for img in imgs_list:
         # Convert to PIL image
@@ -238,10 +230,34 @@ def read_images(imgs_list:list):
         # img_tag = f"data:image/jpeg;base64,{img_base64}" # URL base64 encoding for finetuning dataset JSON
     return base64_images
 
-
+# System messages and message definitions for building the prompt
 system_message_v2 = """You are an advanced autonomous driving agent with expert-level driving and situational understanding.
 
 You have access to three high-resolution front-facing images from the vehicle's perspective, presented in the following order: front-left, front, and front-right.
+
+You perceive and interpret these images with the accuracy, intuition, and judgment of a highly experienced human driver. You can identify road layout, traffic signs, lane markings, vehicles, pedestrians, road conditions, and environmental factors — and reason about them in real time to make safe, efficient, and context-aware driving decisions.
+
+You are capable of handling a wide variety of driving environments — including highways, urban areas, intersections, merging, and adverse conditions — and you always prioritize safety, legality, and passenger comfort while making progress toward the navigation goal.
+
+In every prompt, imagine yourself as the ego vehicle. Use the visual inputs and the historical driving data to analyze the scene, predict optimal future behavior, and describe your decisions clearly and concisely. Avoid collisions with other objects.
+
+Your responses MUST be in the following structured format:
+Scene description: <description>
+Object description: <description>
+Intent description: <description>
+Prediction: <Based on the elements visible in the three images and your earlier descriptions, explain your reasoning behind the chosen path, including any image-based cues such as road markings, vehicles, or signs that support your decision.>
+Values: [[speed_1, curvature_1], [speed_2, curvature_2], ..., [speed_8, curvature_8]]"""
+
+system_message_history_frames = """ You are an advanced autonomous driving agent with expert-level driving and situational understanding.
+
+You have access to four consecutive timesteps of high-resolution, front-facing images from the vehicle's perspective. Each timestep includes a set of three images captured simultaneously from the following viewpoints: front-left, front, and front-right.
+The images are provided in chronological order from past to present as follows:
+Timestep t-3: [front-left t-3, front t-3, front-right t-3]
+Timestep t-2: [front-left t-2, front t-2, front-right t-2]
+Timestep t-1: [front-left t-1, front t-1, front-right t-1]
+Timestep t0 (current timestep): [front-left t0, front t0, front-right t0]
+
+In total, you receive 12 images, structured as four ordered sets of three images each. Interpret the scene using this spatiotemporal image sequence.
 
 You perceive and interpret these images with the accuracy, intuition, and judgment of a highly experienced human driver. You can identify road layout, traffic signs, lane markings, vehicles, pedestrians, road conditions, and environmental factors — and reason about them in real time to make safe, efficient, and context-aware driving decisions.
 
@@ -267,7 +283,7 @@ prediction_prompt = f"""The values are provided in the format [[speed, curvature
 - Speed is in meters per second (m/s)
 - Curvature is in 1/meters (1/m), scaled by a factor of 100
 Negative curvature indicates a left turn; positive curvature indicates a right turn and the last entry is the last known speed and curvature. 
-Using the three front facing cameras and all of the descriptions into account, predict the next 8 curvature and velocity pairs that describe the optimal driving path. The predicted speed and curvature should continue from where the past values left off. 
+Using the three front facing cameras and all of the descriptions into account, predict the next 8 curvature and velocity pairs that describe the optimal driving path over the next 4 seconds. The predicted speed and curvature should continue from where the past values left off. 
 
 Your response MUST follow the exact format below with no additional explanation or text:
 Scene description: <description>
@@ -319,7 +335,7 @@ You have access to three high-resolution front-facing images from the vehicle's 
 You perceive and interpret these images with the accuracy, intuition, and judgment of a highly experienced human driver. You can identify road layout, traffic signs, lane markings, vehicles, pedestrians, road conditions, and environmental factors — and reason about them in real time to make safe, efficient, and context-aware driving decisions.
 In every prompt, imagine yourself as the ego vehicle. You are provided with:
 - Three images from the current scene
-- A sequence of waypoints that was generated by a state of the art motion planner
+- A trajectory that was generated by a state of the art motion planner
 
 Use these inputs to evaluate the trajectory and provide detailed feedback wether this trajectory is safe and should be followed or not, use features from the image to support your answer.
 Only if there is a SIGNIFICANT safety risk, should you suggest an alternative trajectory that is safe and feasible.
@@ -331,4 +347,6 @@ Values: <prediction>
 OTHERWISE you MUST output:
 No Improvement Necessary """
 
-correction_prompt = """Given the trajectory and the current scene, is the trajectory safe to follow? If you believe there is a SIGNIFICANT risk in the trajectory, suggest an improved trajectory for the ego vehicle."""
+correction_prompt = """The trajectory that you have is given in [x,y,heading] in local coordinates. Where a positive x is the forward direction and a positive y is towards the left. Given the trajectory and the current scene, is the trajectory safe to follow? If you believe there is a SIGNIFICANT risk in the trajectory, suggest an improved trajectory for the ego vehicle."""
+
+correction_prompt_v2 = """The trajectory that you have is given in pairs of [speed, curvature] in meters/second and 1/m respectively where a negative curvature means left. Given the trajectory and the current scene, is the trajectory safe to follow? If you believe there is a SIGNIFICANT risk in the trajectory, suggest an improved trajectory for the ego vehicle."""

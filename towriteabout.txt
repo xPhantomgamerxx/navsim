@@ -1,0 +1,9 @@
+challenging dataset and the way its not so challenging, but rather the scenario could be challenging in some cases (e.g. airport pickup scene or ambalamb scene)
+possibly also lable scenarios difficult where it has information to make decisions about the scene, therefore when running on random scenarios includes scenarios where there isnt enough data to make good decisions on, so then performs worse?
+
+only 8 overlapping fail scenarios in chal using gpt, over 4 runs, 29/50 scenarios failed, no consistency.
+25 overlapping fail scenarios in random using gpt, over 3 runs, 36/50 scenarios failed
+
+changing between different integration types, doesnt really seem to make that much difference, even if in theory there could be some integration error with simpler methods
+
+adding history frames doesnt seem to make much of a difference, performance over 3 eval runs very similar to single timestep information
