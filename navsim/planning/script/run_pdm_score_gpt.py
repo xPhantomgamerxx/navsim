@@ -71,7 +71,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             agent_input = scene_loader.get_agent_input_from_token(token)
             
             scene = scene_loader.get_scene_from_token(token)
-            trajectory , response = agent.compute_trajectory(agent_input, scene)
+            trajectory , response = agent.compute_trajectory_waypoints(agent_input, scene)
             pdm_result = pdm_score(
                 metric_cache=metric_cache,
                 model_trajectory=trajectory,

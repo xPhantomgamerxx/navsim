@@ -1,4 +1,4 @@
-TRAIN_TEST_SPLIT=eval_random
+TRAIN_TEST_SPLIT=eval_challenging
 EXPERIMENT_NAME=${1:-gpt_agent_eval}
 
 python $NAVSIM_DEVKIT_ROOT/navsim/planning/script/run_pdm_score_gpt.py \

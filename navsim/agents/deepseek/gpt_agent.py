@@ -123,6 +123,75 @@ class GPTAgent(AbstractAgent):
         # )
         return response
     
+    def call_gpt_waypoints(
+            self, 
+            imgs, 
+            past_waypoints,
+            command,
+            token,
+            gpt_model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # "gpt-4.1"
+        ):
+        """
+        Function that builds the prompt from the given information and then calls the OpenAI API to get the trajectory prediction.
+        
+        Args
+        -
+        imgs: list[Image]
+            list of images from frame t0 [0], t-1 [1], t-2 [2], t-3 [3]
+        past_waypoints: str
+            string of the past waypoints
+        command: str
+            high level driving goal/command
+        token: str
+            token for current scene
+        gpt_model: str
+            gpt model to use
+        """
+        message = []
+        message.append({
+            "role": "developer",
+            "content": f"{system_message_history_frames_waypoints}"}
+        )
+        image_content = []
+        encoded_img_timeframes = []
+        for timeframe in imgs:
+            encoded_images = read_images(timeframe)
+            encoded_img_timeframes.append(encoded_images)
+        
+        image_content.extend([{
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
+            ])
+        
+        message.append({
+            "role": "user",
+            "content": [{
+                "type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
+---
+1.{scene_description_prompt}
+
+---
+2.{object_description_prompt}
+
+---
+3.{command}{intent_description_prompt}
+
+---
+4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""},
+                *image_content,],
+            },
+        )
+        response = self.client.chat.completions.create(
+            model = gpt_model,
+            messages = message,
+            max_completion_tokens = 2048,
+            metadata={
+                "token": token,
+            },
+            store = True,
+        )
+        return response
+    
     def generate_motion(
             self, 
             curr_imgs, 
@@ -151,6 +220,42 @@ class GPTAgent(AbstractAgent):
         past_speed_curvature_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in zip(past_velocities, past_curvatures)]
         past_speed_curvature_str = ", ".join(past_speed_curvature_str)
         full_response = self.call_gpt(imgs = curr_imgs, past_vel_cur=past_speed_curvature_str, command = command, token=token)
+        # output = full_response.output[0].content[0].text
+        output = full_response.choices[0].message.content
+        pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
+        match = re.search(pattern, output, re.DOTALL)
+        if match: vel_cur_preds = ast.literal_eval(match.group(1))
+        else:
+            raise ValueError("No match found in the output string.")
+        return vel_cur_preds, output
+    
+    def generate_motion_waypoints(
+            self, 
+            curr_imgs, 
+            past_waypoints ,
+            command,
+            token,
+            ):
+        """
+        Function to generate the motion prediction of the vehicle using the GPT API
+        
+        Args
+        -
+        curr_imgs: list[Image]
+            list of images from current frame [0], t-1 [1], t-2 [2], t-3 [3]
+        past_velocities: list[float]
+            list of the past velocities
+        past_curvatures: list[float]
+            list of the past curvatures
+        command: str
+            high level driving goal/command
+        token: str
+            token for current scene
+        """
+        # past_curvatures = past_curvatures * 100
+        past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f},{x[2]:.1f}]" for x in past_waypoints]
+        past_waypoints_str = ", ".join(past_waypoints_str)
+        full_response = self.call_gpt_waypoints(imgs = curr_imgs, past_waypoints=past_waypoints_str, command = command, token=token)
         # output = full_response.output[0].content[0].text
         output = full_response.choices[0].message.content
         pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
@@ -221,4 +326,62 @@ class GPTAgent(AbstractAgent):
         # pred = predict_future_waypoints(pred_speeds, pred_curvatures)
         pred = predict_future_waypoints_rk4(pred_speeds, pred_curvatures)
         traj = Trajectory(pred[1:])
+        return traj, response
+    
+    def compute_trajectory_waypoints(self, agent_input: AgentInput, scene: Scene) -> Trajectory: 
+        """
+        Agent function to compute trajectory of ego vehicle in given scene by using the given waypoints rather than the speed curvature pairs.
+        
+        Args
+        -
+        self: class
+            agent object
+        agent_input: AgentInput
+            scene data that is available for the agent to use for the trajectory prediction
+        scene: Scene
+            scene object that contains the scene history metadata
+            
+        Returns
+        -
+        trajectory: Trajectory
+            the predicted trajectory in the Trajectory object
+        response: str
+            The response of the Model
+            """
+        imgs_t0 = [
+            agent_input.cameras[-1].cam_l0.image,
+            agent_input.cameras[-1].cam_f0.image,
+            agent_input.cameras[-1].cam_r0.image,
+            ]
+        imgs_t1 = [
+            agent_input.cameras[-2].cam_l0.image,
+            agent_input.cameras[-2].cam_f0.image,
+            agent_input.cameras[-2].cam_r0.image,
+            ]
+        imgs_t2 = [
+            agent_input.cameras[-3].cam_l0.image,
+            agent_input.cameras[-3].cam_f0.image,
+            agent_input.cameras[-3].cam_r0.image,
+            ]
+        imgs_t3 = [
+            agent_input.cameras[-4].cam_l0.image,
+            agent_input.cameras[-4].cam_f0.image,
+            agent_input.cameras[-4].cam_r0.image,
+            ]
+        imgs = [imgs_t0, imgs_t1, imgs_t2, imgs_t3]
+        curr_frame = scene.scene_metadata.num_history_frames-1
+        ego_history = scene.get_history_trajectory()
+        ego_poses = ego_history.poses
+        command = agent_input.ego_statuses[curr_frame].driving_command
+        command = self.command_map.get(tuple(command)) # possibly introduces problem
+
+        waypoints_pred, response = self.generate_motion_waypoints(
+            curr_imgs = imgs, 
+            past_waypoints=ego_poses,
+            command = command,
+            token= scene.scene_metadata.initial_token,
+            )
+        
+        
+        traj = Trajectory(np.array(waypoints_pred))
         return traj, response
