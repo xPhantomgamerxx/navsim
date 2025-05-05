@@ -1,19 +1,88 @@
-chal1 = set(["a90de87b906d51e8","3be53588a286557f","ba86ae71bc105215","d26771df718251d1","3e11d77a9aca5bb7","25cdf7dee0d25a66","97c09fe94495563a","a41a728fda515594","69f50b1f6c4d5f4b","a4a08c828e87562c","b762ea96cfa75157","384def2e3f9657f6","4024c1a4953e57a7","b435be7b7b1b5dd4","277cdfc9479e52c4","ff1a4e51e3f558ce","75151361dbe658bb",])
-chal2 = set(["69f50b1f6c4d5f4b", "277c41e4b5d858f1", "75151361dbe658bb", "ff1a4e51e3f558ce", "3e11d77a9aca5bb7", "cd72b9f6b03f5f41", "97c09fe94495563a", "fb54b190735e579f", "d26771df718251d1", "690efce01f2054a7", "277cdfc9479e52c4", "3be53588a286557f", "c538fa98187053d8", "a90de87b906d51e8", "a4a08c828e87562c", "da03ba74198a524b", "ba86ae71bc105215", "56e1329f01d95164", "b75644dcc9ca58fe", "b435be7b7b1b5dd4",])
-chal3 = set(["3e11d77a9aca5bb7","d26771df718251d1","97c09fe94495563a","3be53588a286557f","5c34deba76605c7b","75151361dbe658bb","cd72b9f6b03f5f41","69f50b1f6c4d5f4b","12f96c65436e56bf","ba86ae71bc105215","b435be7b7b1b5dd4","96dc22c0224255ca","a90de87b906d51e8","277cdfc9479e52c4",])
-chal4 = set(["277cdfc9479e52c4","75151361dbe658bb","69f50b1f6c4d5f4b","25cdf7dee0d25a66","690efce01f2054a7","b435be7b7b1b5dd4","c538fa98187053d8","3be53588a286557f","4024c1a4953e57a7","3e11d77a9aca5bb7","a90de87b906d51e8","c4e78f6c6fbc5ebe","b762ea96cfa75157","96dc22c0224255ca","277c41e4b5d858f1","97c09fe94495563a",])
+# message = []
+# message.append({
+#     "role": "developer",
+#     "content": f"system_message"}
+# )
 
-intersect = chal1 & chal2 & chal3 & chal4
-print(intersect)
-print("no of intersects: ", len(intersect))
-union = chal1 | chal2 | chal3 | chal4
-print("no of unions: ",len(union))
+imgs = [[1,2,3], [4,5,6], [7,8,9], [10,11,12]] 
 
-rand1 = set(["83c7a6c3c0b15b36","43066c8c8e325fcf","6b0ff02cbbf25aa3","2959d5dbe8235765","b4aeb4bbd9035964","c2a93dd3494b5702","6b8daf3b57175e70","26e7a31dd615509c","6922b2ea23cd51a3","ab313e9e217c581b","458ab847ffa957e8","4566a3d9b5e95d9b","96f6cde1205e5865","016d6a913efa5ff1","e194cef299cf5264","b02be1e28abb59f1","7f62e2a838405444","b619e01b47775ec5","bc2fe3314b345c63","92bbb17b853a5aa2","36077daf1cda5d05","6fcec1c4552351ed","6704953640e55b83","d4ac0a1865ac5c25","eb5989e21dc35a47","b9182baaae3b5ab2","9b7108902e7158d6","b9633d9afd4356a8","e7cfffa4e8dd53a8","76b3e192b5e45727",])
-rand2 = set(["6b0ff02cbbf25aa3","83c7a6c3c0b15b36","b4aeb4bbd9035964","d4ac0a1865ac5c25","7f62e2a838405444","b9182baaae3b5ab2","96f6cde1205e5865","c2a93dd3494b5702","b9633d9afd4356a8","3e8c8729205850ab","6922b2ea23cd51a3","784c48e2a44c5036","76b3e192b5e45727","4566a3d9b5e95d9b","bc2fe3314b345c63","6fcec1c4552351ed","b02be1e28abb59f1","e194cef299cf5264","b619e01b47775ec5","26e7a31dd615509c","7a7e8074ee5c5389","df8bff51c1d95e09","2959d5dbe8235765","43066c8c8e325fcf","9b7108902e7158d6","6b8daf3b57175e70","6704953640e55b83","36077daf1cda5d05","ab313e9e217c581b","e7cfffa4e8dd53a8",])
-rand3 = set(["43066c8c8e325fcf","92bbb17b853a5aa2","83c7a6c3c0b15b36","7f62e2a838405444","9b7108902e7158d6","72c898c5c6a45939","bc2fe3314b345c63","ab313e9e217c581b","b9633d9afd4356a8","016d6a913efa5ff1","6922b2ea23cd51a3","2959d5dbe8235765","6fcec1c4552351ed","6b0ff02cbbf25aa3","76b3e192b5e45727","36077daf1cda5d05","6704953640e55b83","e7cfffa4e8dd53a8","e194cef299cf5264","4566a3d9b5e95d9b","96f6cde1205e5865","b02be1e28abb59f1","b619e01b47775ec5","b9182baaae3b5ab2","458ab847ffa957e8","d4ac0a1865ac5c25","9215943615c45afd","c2a93dd3494b5702","b4aeb4bbd9035964","6b8daf3b57175e70",])
 
-intersect = rand1 & rand2 & rand3 
-print("no of intersects: ",len(intersect))
-union = rand1 | rand2 | rand3 
-print("no of unions: ",len(union))
+# message.append({
+#     "role": "user",
+#     "content": [
+#         {"type": "text", "text": "These are the images at timestep t-3 in order front-left, front, front-right."},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][0]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][1]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][2]}"}},
+#         {"type": "text", "text": "These are the images at timestep t-2 in order front-left, front, front-right."},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][0]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][1]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][2]}"}},
+#         {"type": "text", "text": "These are the images at timestep t-1 in order front-left, front, front-right."},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][0]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][1]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][2]}"}},
+#         {"type": "text", "text": "These are the images at timestep t-0 in order front-left, front, front-right."},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][0]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][1]}"}},
+#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][2]}"}},
+#         {"type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
+# ---
+# 1.scene_description_prompt
+
+# ---
+# 2.object_description_prompt
+
+# ---
+# 3.commandintent_description_prompt
+
+# ---
+# 4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: past_waypoints. prediction_prompt_waypoints"""},
+#         ]
+#     }
+# )
+
+message = []
+
+message.append({
+    "role": "developer",
+    "content": "system_message"
+})
+
+content = []
+timesteps = ["t-3", "t-2", "t-1", "t-0"]
+
+for i, timestep in enumerate(timesteps):
+    content.append({
+        "type": "text",
+        "text": f"These are the images at timestep {timestep} in order front-left, front, front-right."
+    })
+    for img in imgs[i]:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+        })
+
+content.append({
+    "type": "text",
+    "text": """Using the provided images, you need to complete these  following instructions and questions.
+---
+1.scene_description_prompt
+
+---
+2.object_description_prompt
+
+---
+3.commandintent_description_prompt
+
+---
+4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: past_waypoints. prediction_prompt_waypoints"""
+})
+
+# Add user message
+message.append({
+    "role": "user",
+    "content": content
+})
+
+print(message)

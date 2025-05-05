@@ -152,35 +152,72 @@ class GPTAgent(AbstractAgent):
             "role": "developer",
             "content": f"{system_message_history_frames_waypoints}"}
         )
+
         image_content = []
         encoded_img_timeframes = []
         for timeframe in imgs:
             encoded_images = read_images(timeframe)
             encoded_img_timeframes.append(encoded_images)
-        
-        image_content.extend([{
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
-            ])
-        
+        content = []
+        timesteps = ["t-3", "t-2", "t-1", "t-0"]
+
+        for i, timestep in enumerate(timesteps):
+            content.append({
+                "type": "text",
+                "text": f"These are the images at timestep {timestep} in order front-left, front, front-right."
+            })
+            for img in encoded_img_timeframes[i]:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                })
+
+        content.append({
+            "type": "text",
+            "text": f"""Using the provided images, you need to complete these  following instructions and questions.
+        ---
+        1.{scene_description_prompt}
+
+        ---
+        2.{object_description_prompt}
+
+        ---
+        3.{command}{intent_description_prompt}
+
+        ---
+        4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""
+        })
+
+        # Add user message
         message.append({
             "role": "user",
-            "content": [{
-                "type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
----
-1.{scene_description_prompt}
+            "content": content
+        })
 
----
-2.{object_description_prompt}
 
----
-3.{command}{intent_description_prompt}
+#         image_content.append([{
+#                 "type": "image_url",
+#                 "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
+#             ])
+        
+#         message.append({
+#             "role": "user",
+#             "content": [{
+#                 "type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
+# ---
+# 1.{scene_description_prompt}
 
----
-4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""},
-                *image_content,],
-            },
-        )
+# ---
+# 2.{object_description_prompt}
+
+# ---
+# 3.{command}{intent_description_prompt}
+
+# ---
+# 4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""},
+#                 *image_content,],
+#             },
+#         )
         response = self.client.chat.completions.create(
             model = gpt_model,
             messages = message,
@@ -305,7 +342,7 @@ class GPTAgent(AbstractAgent):
             agent_input.cameras[-4].cam_f0.image,
             agent_input.cameras[-4].cam_r0.image,
             ]
-        imgs = [imgs_t0, imgs_t1, imgs_t2, imgs_t3]
+        imgs = [imgs_t3, imgs_t2, imgs_t1, imgs_t0]
         curr_frame = scene.scene_metadata.num_history_frames-1
         ego_history = scene.get_history_trajectory()
         ego_poses = ego_history.poses
