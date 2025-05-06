@@ -7,3 +7,17 @@ only 8 overlapping fail scenarios in chal using gpt, over 4 runs, 29/50 scenario
 changing between different integration types, doesnt really seem to make that much difference, even if in theory there could be some integration error with simpler methods
 
 adding history frames doesnt seem to make much of a difference, performance over 3 eval runs very similar to single timestep information
+
+---
+
+all initial results are made with the images just passed at the end, even when introducing multiple timeframes
+
+Restructured prompt in style of :
+this is t-3: 
+img, img, img
+...
+this is t-0:
+img, img, img
+now using these images and the waypoints predict the future
+
+results seem to be better ?? compare results between new_order and old structure

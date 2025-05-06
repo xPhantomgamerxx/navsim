@@ -15,6 +15,7 @@ import pandas as pd
 
 from nuplan.planning.script.builders.logging_builder import build_logger
 
+from zoneinfo import ZoneInfo
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.common.dataloader import SceneLoader, SceneFilter, MetricCacheLoader
 from navsim.common.dataclasses import SensorConfig
@@ -71,7 +72,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             agent_input = scene_loader.get_agent_input_from_token(token)
             
             scene = scene_loader.get_scene_from_token(token)
-            trajectory , response = agent.compute_trajectory_waypoints(agent_input, scene)
+            trajectory , response = agent.compute_trajectory(agent_input, scene)
             pdm_result = pdm_score(
                 metric_cache=metric_cache,
                 model_trajectory=trajectory,
@@ -153,7 +154,7 @@ def main(cfg: DictConfig) -> None:
     pdm_score_df.loc[len(pdm_score_df)] = average_row
 
     save_path = Path(cfg.output_dir)
-    timestamp = datetime.now().strftime("%Y.%m.%d.%H.%M.%S")
+    timestamp = datetime.now(ZoneInfo("Europe/Stockholm")).strftime("%Y.%m.%d.%H.%M.%S")
     pdm_score_df.to_csv(save_path / f"{timestamp}.csv")
 
     logger.info(

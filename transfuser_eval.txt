@@ -1,0 +1,30 @@
+when transfuser runs off the road ever so slightly gpt cannot recognise this as being wrong, pdm score given is 0, even though the trajectory is really good, just slightly to the side. e.g. token=97c09fe94495563a, '214abdb588465704'
+
+example responses where it is wrong: 
+    """No Improvement Necessary
+    Explanation:
+    The provided images show the ego vehicle behind a white van on a city street, approaching a crosswalk where two pedestrians are currently crossing. The expert planner's trajectory appears to continue straight behind the van at a controlled speed, with no indications of aggressive maneuvers or unsafe behavior.
+    Key observations:
+    - The van in front acts as a shield, and the ego vehicle should maintain a safe following distance.
+    - Pedestrians ahead are already crossing and the vehicle must yield, which appears consistent with the trajectory's moderate progression.
+    - There are no clear hazards, vehicles cutting in, or obstructions in the intended path of travel.
+    - The images do not indicate any traffic signals or requirements for immediate stops besides the crosswalk, which is being respected by the van in front.
+    Assumption is made that the motion planner will obey the movement of the van and, by proxy, the rules of yielding to pedestrians.
+    Conclusion: The planned trajectory is safe given the scene, and there is no need for improvement unless the vehicle fails to yield to pedestrians prior to the crosswalk, which is not evidenced in the motion planning data provided."""
+
+
+    here trajectory is correct. token=fe469d42385259e2:
+    """Explanation:  
+    The current trajectory moves the vehicle straight through a large intersection. Based on the images, the traffic light for the ego vehicle's direction is RED (visible in the front-center and front-right images). Proceeding along the given trajectory would mean running a red light, which is extremely dangerous and a clear traffic violation. Cross traffic and pedestrian movements are likely, further increasing risk.
+
+    Alternative Trajectory:
+    Values: [[0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0]]
+
+    This alternative brings the vehicle to a complete stop at the intersection, in compliance with the traffic signal, ensuring safety for all road users."""

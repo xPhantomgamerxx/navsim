@@ -72,21 +72,28 @@ class GPTAgent(AbstractAgent):
             "role": "developer",
             "content": f"{system_message_history_frames}"}
         )
-        image_content = []
+
         encoded_img_timeframes = []
         for timeframe in imgs:
             encoded_images = read_images(timeframe)
             encoded_img_timeframes.append(encoded_images)
-        
-        image_content.extend([{
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
-            ])
-        
-        message.append({
-            "role": "user",
-            "content": [{
-                "type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
+        content = []
+        timesteps = ["t-3", "t-2", "t-1", "t-0"]
+
+        for i, timestep in enumerate(timesteps):
+            content.append({
+                "type": "text",
+                "text": f"These are the images at timestep {timestep} in order front-left, front, front-right."
+            })
+            for img in encoded_img_timeframes[i]:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                })
+
+        content.append({
+            "type": "text",
+            "text": f"""Using the provided images, you need to complete these  following instructions and questions.
 ---
 1.{scene_description_prompt}
 
@@ -97,30 +104,23 @@ class GPTAgent(AbstractAgent):
 3.{command}{intent_description_prompt}
 
 ---
-4. The historical velocities and curvatures of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_vel_cur}. {prediction_prompt}"""},
-                *image_content,],
-            },
-        )
+4. The historical speed and curvature pairs of the ego vehicle of the last 3 intervals of 0.5s up until the present are: {past_vel_cur}. {prediction_prompt}"""
+        })
+
+        message.append({
+            "role": "user",
+            "content": content
+        })
         response = self.client.chat.completions.create(
             model = gpt_model,
             messages = message,
             max_completion_tokens = 2048,
-            metadata={
+            metadata={ 
                 "token": token,
             },
             store = True,
         )
         
-        # print(message[0]["content"][0]["text"])
-        # response = self.client.responses.create(
-        #     model="ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC",
-        #     instructions=system_message_v2,
-        #     input=message,
-        #     max_output_tokens=2048,
-        #     metadata={
-        #         "token": token,
-        #     }
-        # )
         return response
     
     def call_gpt_waypoints(
@@ -153,7 +153,6 @@ class GPTAgent(AbstractAgent):
             "content": f"{system_message_history_frames_waypoints}"}
         )
 
-        image_content = []
         encoded_img_timeframes = []
         for timeframe in imgs:
             encoded_images = read_images(timeframe)
@@ -175,49 +174,24 @@ class GPTAgent(AbstractAgent):
         content.append({
             "type": "text",
             "text": f"""Using the provided images, you need to complete these  following instructions and questions.
-        ---
-        1.{scene_description_prompt}
+---
+1.{scene_description_prompt}
 
-        ---
-        2.{object_description_prompt}
+---
+2.{object_description_prompt}
 
-        ---
-        3.{command}{intent_description_prompt}
+---
+3.{command}{intent_description_prompt}
 
-        ---
-        4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""
+---
+4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""
         })
 
-        # Add user message
         message.append({
             "role": "user",
             "content": content
         })
 
-
-#         image_content.append([{
-#                 "type": "image_url",
-#                 "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for encoded_images in encoded_img_timeframes for enc in encoded_images
-#             ])
-        
-#         message.append({
-#             "role": "user",
-#             "content": [{
-#                 "type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
-# ---
-# 1.{scene_description_prompt}
-
-# ---
-# 2.{object_description_prompt}
-
-# ---
-# 3.{command}{intent_description_prompt}
-
-# ---
-# 4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: {past_waypoints}. {prediction_prompt_waypoints}"""},
-#                 *image_content,],
-#             },
-#         )
         response = self.client.chat.completions.create(
             model = gpt_model,
             messages = message,
@@ -257,7 +231,6 @@ class GPTAgent(AbstractAgent):
         past_speed_curvature_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in zip(past_velocities, past_curvatures)]
         past_speed_curvature_str = ", ".join(past_speed_curvature_str)
         full_response = self.call_gpt(imgs = curr_imgs, past_vel_cur=past_speed_curvature_str, command = command, token=token)
-        # output = full_response.output[0].content[0].text
         output = full_response.choices[0].message.content
         pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
         match = re.search(pattern, output, re.DOTALL)
@@ -280,10 +253,8 @@ class GPTAgent(AbstractAgent):
         -
         curr_imgs: list[Image]
             list of images from current frame [0], t-1 [1], t-2 [2], t-3 [3]
-        past_velocities: list[float]
-            list of the past velocities
-        past_curvatures: list[float]
-            list of the past curvatures
+        past_waypoints: list[float]
+            list of the past waypoints
         command: str
             high level driving goal/command
         token: str
@@ -293,7 +264,6 @@ class GPTAgent(AbstractAgent):
         past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f},{x[2]:.1f}]" for x in past_waypoints]
         past_waypoints_str = ", ".join(past_waypoints_str)
         full_response = self.call_gpt_waypoints(imgs = curr_imgs, past_waypoints=past_waypoints_str, command = command, token=token)
-        # output = full_response.output[0].content[0].text
         output = full_response.choices[0].message.content
         pattern = r"Values:\s*(\[\[.*?\]\]|\[\(.*?\)\])"
         match = re.search(pattern, output, re.DOTALL)
@@ -322,33 +292,24 @@ class GPTAgent(AbstractAgent):
         response: str
             The response of the Model
             """
-        imgs_t0 = [
-            agent_input.cameras[-1].cam_l0.image,
-            agent_input.cameras[-1].cam_f0.image,
-            agent_input.cameras[-1].cam_r0.image,
-            ]
-        imgs_t1 = [
-            agent_input.cameras[-2].cam_l0.image,
-            agent_input.cameras[-2].cam_f0.image,
-            agent_input.cameras[-2].cam_r0.image,
-            ]
-        imgs_t2 = [
-            agent_input.cameras[-3].cam_l0.image,
-            agent_input.cameras[-3].cam_f0.image,
-            agent_input.cameras[-3].cam_r0.image,
-            ]
-        imgs_t3 = [
-            agent_input.cameras[-4].cam_l0.image,
-            agent_input.cameras[-4].cam_f0.image,
-            agent_input.cameras[-4].cam_r0.image,
-            ]
+        imgs_t0 = [agent_input.cameras[-1].cam_l0.image,
+                   agent_input.cameras[-1].cam_f0.image,
+                   agent_input.cameras[-1].cam_r0.image,]
+        imgs_t1 = [agent_input.cameras[-2].cam_l0.image,
+                   agent_input.cameras[-2].cam_f0.image,
+                   agent_input.cameras[-2].cam_r0.image,]
+        imgs_t2 = [agent_input.cameras[-3].cam_l0.image,
+                   agent_input.cameras[-3].cam_f0.image,
+                   agent_input.cameras[-3].cam_r0.image,]
+        imgs_t3 = [agent_input.cameras[-4].cam_l0.image,
+                   agent_input.cameras[-4].cam_f0.image,
+                   agent_input.cameras[-4].cam_r0.image,]
         imgs = [imgs_t3, imgs_t2, imgs_t1, imgs_t0]
         curr_frame = scene.scene_metadata.num_history_frames-1
         ego_history = scene.get_history_trajectory()
-        ego_poses = ego_history.poses
         trajectory = pose_to_vel_cur(ego_history.poses)
         command = agent_input.ego_statuses[curr_frame].driving_command
-        command = self.command_map.get(tuple(command)) # possibly introduces problem
+        command = self.command_map.get(tuple(command)) 
 
         vel_cur_pred, response = self.generate_motion(
             curr_imgs = imgs, 
@@ -360,7 +321,6 @@ class GPTAgent(AbstractAgent):
         
         pred_speeds = np.array(vel_cur_pred)[:, 0]
         pred_curvatures = np.array(vel_cur_pred)[:, 1] / 100
-        # pred = predict_future_waypoints(pred_speeds, pred_curvatures)
         pred = predict_future_waypoints_rk4(pred_speeds, pred_curvatures)
         traj = Trajectory(pred[1:])
         return traj, response
@@ -385,32 +345,24 @@ class GPTAgent(AbstractAgent):
         response: str
             The response of the Model
             """
-        imgs_t0 = [
-            agent_input.cameras[-1].cam_l0.image,
-            agent_input.cameras[-1].cam_f0.image,
-            agent_input.cameras[-1].cam_r0.image,
-            ]
-        imgs_t1 = [
-            agent_input.cameras[-2].cam_l0.image,
-            agent_input.cameras[-2].cam_f0.image,
-            agent_input.cameras[-2].cam_r0.image,
-            ]
-        imgs_t2 = [
-            agent_input.cameras[-3].cam_l0.image,
-            agent_input.cameras[-3].cam_f0.image,
-            agent_input.cameras[-3].cam_r0.image,
-            ]
-        imgs_t3 = [
-            agent_input.cameras[-4].cam_l0.image,
-            agent_input.cameras[-4].cam_f0.image,
-            agent_input.cameras[-4].cam_r0.image,
-            ]
+        imgs_t0 = [agent_input.cameras[-1].cam_l0.image,
+                   agent_input.cameras[-1].cam_f0.image,
+                   agent_input.cameras[-1].cam_r0.image,]
+        imgs_t1 = [agent_input.cameras[-2].cam_l0.image,
+                   agent_input.cameras[-2].cam_f0.image,
+                   agent_input.cameras[-2].cam_r0.image,]
+        imgs_t2 = [agent_input.cameras[-3].cam_l0.image,
+                   agent_input.cameras[-3].cam_f0.image,
+                   agent_input.cameras[-3].cam_r0.image,]
+        imgs_t3 = [agent_input.cameras[-4].cam_l0.image,
+                   agent_input.cameras[-4].cam_f0.image,
+                   agent_input.cameras[-4].cam_r0.image,]
         imgs = [imgs_t0, imgs_t1, imgs_t2, imgs_t3]
         curr_frame = scene.scene_metadata.num_history_frames-1
         ego_history = scene.get_history_trajectory()
         ego_poses = ego_history.poses
         command = agent_input.ego_statuses[curr_frame].driving_command
-        command = self.command_map.get(tuple(command)) # possibly introduces problem
+        command = self.command_map.get(tuple(command)) 
 
         waypoints_pred, response = self.generate_motion_waypoints(
             curr_imgs = imgs, 
@@ -418,7 +370,6 @@ class GPTAgent(AbstractAgent):
             command = command,
             token= scene.scene_metadata.initial_token,
             )
-        
-        
+                
         traj = Trajectory(np.array(waypoints_pred))
         return traj, response

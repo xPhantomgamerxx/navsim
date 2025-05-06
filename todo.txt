@@ -46,3 +46,28 @@ TEST GPT with just waypoints, not converted to speed curvature, seems to be able
 
 
 history frames, in both inference and trajectory evaluation
+
+
+run again with history frames and speed cur things to make sure is correct.
+Then look into the transfuser evaluation stuffs
+
+talk about:
+    thesis presentaion 16th of june, thesis draft needed for 2nd
+    initial runs of transfuser evaluation
+    adding history frames, changing to waypoints rather than speed curvature vectors
+
+
+rerun with history on base model
+
+run on transfuser failures and compare to same number of random scenarios
+
+story to tell:
+    where did we start, thought could improve on these challenging scenarios, out of distribution
+    challenging dataset, doesnt really contain such challenging datas
+    wanted to use gpt to extract particularly challenging scenarios from this dataset
+    this was somewhat successful, however in the end the model still struggles with performing well in these scenarios
+    turns out the model is just kinda bad at predicting traejctories this detailed without extensive finetuning on a fuck ton of data
+    switched to trajectory evaluation rather than prediction.
+    this also has some problems that are technically correct, but make the evaluation wrong
+
+    always give the reasons for a change, and go change by change and make comparisons to before or to other versions and so
