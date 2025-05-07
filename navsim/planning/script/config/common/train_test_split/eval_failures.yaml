@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: eval_failures
+
+data_split: test

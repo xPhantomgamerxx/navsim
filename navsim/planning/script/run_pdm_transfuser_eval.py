@@ -7,6 +7,7 @@ import os
 import re
 import ast
 import copy
+import json
 import pandas as pd
 
 
@@ -45,7 +46,7 @@ def eval_trajectory(
         input: AgentInput,
         ego_history: List[Trajectory],
         token: str,
-        convert: bool = False,
+        convert: bool = True,
     ) -> List[Union[Trajectory, bool, str]]:
     """
     Evaluates the given trajectory using GPT to see if we need to improve it
@@ -76,21 +77,22 @@ def eval_trajectory(
     image_content = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for enc in encoded_imgs] 
     if convert: 
         input_poses, prompt, history_pose = pose_to_vel_cur(trajectory.poses), correction_prompt_v2, pose_to_vel_cur(ego_history)
+        past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in history_pose]
     else: 
         input_poses, prompt, history_pose = trajectory.poses, correction_prompt, ego_history
-    past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f},{x[2]:.1f}]" for x in history_pose]
+        past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f},{x[2]:.1f}]" for x in history_pose]
     past_waypoints_str = ", ".join(past_waypoints_str)
     message.append({
                 "role": "user",
                 "content": [
                     *image_content,
-                    {"type": "text", "text": f"""The ground truth history data of the ego vehicle is: {past_waypoints_str}. This is the current trajectory given by the expert motion planner: {input_poses} {prompt}"""},
+                    {"type": "text", "text": f"""The ground truth history data of the ego vehicle, sampled at 0.5-second intervals, is: {past_waypoints_str}. The current trajectory provided by the expert motion planner, also spaced at 0.5-second intervals, is: {input_poses}. {prompt}"""},
                     ],
                 },
             )
     
     response = client.chat.completions.create(
-            model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", #"gpt-4.1"
+            model = "gpt-4.1", #"ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", #
             messages = message,
             store = True,
             metadata={"token": token},
@@ -114,7 +116,11 @@ def eval_trajectory(
         cleaned_array_text = "[" + ",".join(array_lines) + "]"
         cleaned_array_text = re.sub(r'(?<=\d)\s+(?=[\d.-])', ', ', cleaned_array_text)
         values_array = np.array(ast.literal_eval(cleaned_array_text))
-        traj = Trajectory(values_array)
+        if convert:
+            prediction = predict_future_waypoints_rk4(values_array[:,0], values_array[:,1])
+            traj = Trajectory(prediction)
+        else:
+            traj = Trajectory(values_array)
         needed = True
     return [traj, needed, output]
 
@@ -210,7 +216,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             smth.update({"output": "No Improvement Necessary"})
             improved_pdm_results.append(smth) #### FIX PROBLEM HERE
         print("")
-    return pdm_results, improved_pdm_results
+    return pdm_results, improved_pdm_results, count
 
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
@@ -254,7 +260,7 @@ def main(cfg: DictConfig) -> None:
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
 
-    score_rows, improved_scores = run_pdm_score(data_points)
+    score_rows, improved_scores, count = run_pdm_score(data_points)
 
     pdm_score_df = pd.DataFrame(score_rows)
     num_sucessful_scenarios = pdm_score_df["valid"].sum()
@@ -279,23 +285,32 @@ def main(cfg: DictConfig) -> None:
     )
 
     pdm_score_df = pd.DataFrame(improved_scores)
+    reasoning = pdm_score_df["output"]
+    tokens = pdm_score_df["token"]
+    pdm_score_df.drop(columns=["output"], inplace=True)
     num_sucessful_scenarios = pdm_score_df["valid"].sum()
     num_failed_scenarios = len(pdm_score_df) - num_sucessful_scenarios
-    average_row = pdm_score_df.drop(columns=["token", "valid", "output"]).mean(skipna=True)
+    average_row = pdm_score_df.drop(columns=["token", "valid"]).mean(skipna=True)
     average_row["token"] = "average"
     average_row["valid"] = pdm_score_df["valid"].all()
     pdm_score_df.loc[len(pdm_score_df)] = average_row
 
     save_path = Path(cfg.output_dir)
     pdm_score_df.to_csv(save_path / f"improved_results.csv")
+    data = [{"token": token, "reasoning": reason} for token, reason in zip(tokens, reasoning)]
+
+    with open(save_path / "improved_results.jsonl", "w") as f:
+        for item in data:
+            json.dump(item, f)
+            f.write("\n")
 
     logger.info(
         f"""
         For Improved Results: 
         Number of successful scenarios: {num_sucessful_scenarios}.
         Number of failed scenarios: {num_failed_scenarios}.
+        Number of scenarios that needed improvement: {count}.
         Final average score of valid results: {pdm_score_df['score'].mean()}.
-        Results are stored in: {save_path / f"{timestamp}.csv"}.
         """
     )
 

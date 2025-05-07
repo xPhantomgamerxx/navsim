@@ -56,10 +56,74 @@ talk about:
     initial runs of transfuser evaluation
     adding history frames, changing to waypoints rather than speed curvature vectors
 
+experiments I have:
+-inference:
+    - finetuned:
+        - challenging scenarios x3:
+            - with history x3
+            - with history and waypoints x2
+            - with history and waypoints and new order x2
+            - with history and new prompt order x2
+        - random scenarios x3:
+            - with history x1
+    - generic:
+        - challenging scenarios x3:
+        - random scenarios x3:
+-improvement:
+    - finetuned:
+        - failure scenarios x1:
+            -
+        - random scenarios(not sure if want to use these):
+            - with waypoints x1
+    - generic:
+        - failure scenarios: 
+            - with waypoints x3
 
-rerun with history on base model
 
-run on transfuser failures and compare to same number of random scenarios
+experiments to run:
+    - run inference on:
+        - all runs above that are only at 2
+        - generic:
+            - with history and new order x3
+            - with history waypoints and new order x3 
+            - both challenging and random scenarios
+
+    - run on transfuser failures and compare to same number of random scenarios
+    - run transfuser eval:
+        - finetuned on fail set with speed cur x2
+        - base model on fail set with sp cur x3
+
+improvement experiments we want in the end(all with new order):
+    - finetuned: 
+        - failure set:
+            - with history:
+                - waypoints
+                - speed curvature
+            - without history:
+                - waypoint
+                - speed curvature
+        - random selection of scenarios:
+            - with history:
+                - waypoints
+                - speed curvature
+            - without history:
+                - waypoint
+                - speed curvature
+    - generic:  
+        - failure set:
+            - with history:
+                - waypoints
+                - speed curvature
+            - without history:
+                - waypoint
+                - speed curvature
+        - random selection of scenarios:
+            - with history:
+                - waypoints
+                - speed curvature
+            - without history:
+                - waypoint
+                - speed curvature
 
 story to tell:
     where did we start, thought could improve on these challenging scenarios, out of distribution
