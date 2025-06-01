@@ -1,4 +1,4 @@
-TRAIN_TEST_SPLIT=worsttest
+TRAIN_TEST_SPLIT=eval_random
 
 python -m debugpy --listen 5678 --wait-for-client $NAVSIM_DEVKIT_ROOT/navsim/planning/script/run_pdm_score_deepseek.py \
 train_test_split=$TRAIN_TEST_SPLIT \

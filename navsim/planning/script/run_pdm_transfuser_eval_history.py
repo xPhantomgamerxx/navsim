@@ -41,7 +41,41 @@ if myapi_key is None:
     exit()
 client = OpenAI(api_key=myapi_key)
 
+def get_images(agent_input: AgentInput):
+    imgs_t0 = [agent_input.cameras[-1].cam_l0.image,
+                   agent_input.cameras[-1].cam_f0.image,
+                   agent_input.cameras[-1].cam_r0.image,]
+    imgs_t1 = [agent_input.cameras[-2].cam_l0.image,
+                agent_input.cameras[-2].cam_f0.image,
+                agent_input.cameras[-2].cam_r0.image,]
+    imgs_t2 = [agent_input.cameras[-3].cam_l0.image,
+                agent_input.cameras[-3].cam_f0.image,
+                agent_input.cameras[-3].cam_r0.image,]
+    imgs_t3 = [agent_input.cameras[-4].cam_l0.image,
+                agent_input.cameras[-4].cam_f0.image,
+                agent_input.cameras[-4].cam_r0.image,]
+    imgs = [imgs_t3, imgs_t2, imgs_t1, imgs_t0]
+    encoded_img_timeframes = []
+    for timeframe in imgs:
+        encoded_images = read_images(timeframe)
+        encoded_img_timeframes.append(encoded_images)
+    content = []
+    timesteps = ["t-3", "t-2", "t-1", "t-0"]
+
+    for i, timestep in enumerate(timesteps):
+        content.append({
+            "type": "text",
+            "text": f"These are the images at timestep {timestep} in order front-left, front, front-right."
+        })
+        for img in encoded_img_timeframes[i]:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+            })
+    return content
+
 def eval_trajectory(
+        scene: Any,
         trajectory: Trajectory,
         input: AgentInput,
         ego_history: List[Trajectory],
@@ -68,31 +102,29 @@ def eval_trajectory(
     message = []
     message.append({
             "role": "developer",
-            "content": f"{system_message_v5}"}
+            "content": f"{system_message_v6}"}
         )
-    imgs = [input.cameras[-1].cam_l0.image, 
-            input.cameras[-1].cam_f0.image, 
-            input.cameras[-1].cam_r0.image]
-    encoded_imgs = read_images(imgs)
-    image_content = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{enc}"}} for enc in encoded_imgs] 
+    imgs_content = get_images(scene.get_agent_input())
     if convert: 
         input_poses, prompt, history_pose = pose_to_vel_cur(trajectory.poses), correction_prompt_v2, pose_to_vel_cur(ego_history)
         past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in history_pose]
     else: 
         input_poses, prompt, history_pose = trajectory.poses, correction_prompt, ego_history
         past_waypoints_str = [f"[{x[0]:.1f},{x[1]:.1f},{x[2]:.1f}]" for x in history_pose]
+
     past_waypoints_str = ", ".join(past_waypoints_str)
+
+    imgs_content.append({
+            "type": "text",
+            "text":f"""The ground truth history data of the ego vehicle, sampled at 0.5-second intervals, is: {past_waypoints_str}. The current trajectory provided by the expert motion planner, also spaced at 0.5-second intervals, is: {input_poses}. {prompt}"""})
+
     message.append({
-                "role": "user",
-                "content": [
-                    *image_content,
-                    {"type": "text", "text": f"""The ground truth history data of the ego vehicle, sampled at 0.5-second intervals, is: {past_waypoints_str}. The current trajectory provided by the expert motion planner, also spaced at 0.5-second intervals, is: {input_poses}. {prompt}"""},
-                    ],
-                },
-            )
+            "role": "user",
+            "content": imgs_content
+        })
     
     response = client.chat.completions.create(
-            model = "gpt-4.1",#"ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # , #
+            model = "gpt-4.1", #"ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC",#"gpt-4.1",# #"gpt-4.1",
             messages = message,
             store = True,
             metadata={"token": token},
@@ -116,7 +148,7 @@ def eval_trajectory(
         cleaned_array_text = "[" + ",".join(array_lines) + "]"
         cleaned_array_text = re.sub(r'(?<=\d)\s+(?=[\d.-])', ', ', cleaned_array_text)
         values_array = np.array(ast.literal_eval(cleaned_array_text))
-        if convert:
+        if convert: # trajectory poses and sampling have unequal lengths, even though the message seemed to be fine
             prediction = predict_future_waypoints_rk4(values_array[:,0], values_array[:,1])
             traj = Trajectory(prediction)
         else:
@@ -158,7 +190,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
         sensor_blobs_path=Path(cfg.sensor_blobs_path),
         data_path=Path(cfg.navsim_log_path),
         scene_filter=scene_filter,
-        sensor_config=agent.get_sensor_config(),
+        sensor_config=SensorConfig.build_all_sensors(),
     )
 
     tokens_to_evaluate = list(set(scene_loader.tokens) & set(metric_cache_loader.tokens))
@@ -182,7 +214,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
             scene = scene_loader.get_scene_from_token(token)
             trajectory = agent.compute_trajectory(agent_input)
             ego_history = scene.get_history_trajectory()
-            improved_trajectory, needed, output = eval_trajectory(trajectory, agent_input, ego_history.poses, token)
+            improved_trajectory, needed, output = eval_trajectory(scene, trajectory, agent_input, ego_history.poses, token)
 
             original_pdm_result = pdm_score(
                 metric_cache=metric_cache,
@@ -192,7 +224,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
                 scorer=scorer,
             )
             orig_score_row.update(asdict(original_pdm_result))
-            print("Original Score: ",orig_score_row)
+            print("Original Score",orig_score_row)
             if needed: 
                 count+=1
                 improved_pdm_result = pdm_score(
@@ -219,7 +251,7 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
                 smth.update({"output": "No Improvement Necessary"})
                 improved_pdm_results.append(smth) 
 
-            if orig_score_row['score'] > 0 and needed:
+            if orig_score_row['score'] > 0 and needed: # needs to be improved
                 improved_pdm_results[-1].update({'result': 'false_positive'})
             elif orig_score_row['score'] > 0 and not needed:
                 improved_pdm_results[-1].update({'result': 'true_negative'})

@@ -1,7 +1,7 @@
-TRAIN_TEST_SPLIT=worsttest
+TRAIN_TEST_SPLIT=eval_challenging
 
 python $NAVSIM_DEVKIT_ROOT/navsim/planning/script/run_pdm_score_deepseek.py \
 train_test_split=$TRAIN_TEST_SPLIT \
 agent=deepseek_agent \
 worker=ray_distributed \
-experiment_name=deepseek_agent_eval 
+experiment_name=deepseek_agent_eval_challenging

@@ -1,88 +1,32 @@
-# message = []
-# message.append({
-#     "role": "developer",
-#     "content": f"system_message"}
-# )
+spcur_hist3 = ["016d6a913efa5ff1", "13ba9275e341525b", "e194cef299cf5264", "80957a180a325353", "9b7108902e7158d6", "e0e228212a655d7f", "8eda03e314a456a4", "bc2fe3314b345c63", "7f9f4661a4875959", ]
 
-imgs = [[1,2,3], [4,5,6], [7,8,9], [10,11,12]] 
+spcur_hist2 = ["016d6a913efa5ff1", "13ba9275e341525b", "6922b2ea23cd51a3", "1b35b775c4a95647", "80957a180a325353", "784c48e2a44c5036", "e0e228212a655d7f", "bc2fe3314b345c63", "9215943615c45afd", "c2a93dd3494b5702", "e194cef299cf5264", "43066c8c8e325fcf", "6c321000d6c0527a", "9b7108902e7158d6", "2959d5dbe8235765", "7f9f4661a4875959", ]
 
+spcur_hist1 = ["b9633d9afd4356a8","8eda03e314a456a4","13ba9275e341525b","2959d5dbe8235765","8ddb6763987051ba","e0e228212a655d7f","3e8c8729205850ab","9b7108902e7158d6","7f9f4661a4875959","e194cef299cf5264","80957a180a325353","43066c8c8e325fcf","6922b2ea23cd51a3","016d6a913efa5ff1","784c48e2a44c5036","bc2fe3314b345c63",]
 
-# message.append({
-#     "role": "user",
-#     "content": [
-#         {"type": "text", "text": "These are the images at timestep t-3 in order front-left, front, front-right."},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][0]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][1]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[0][2]}"}},
-#         {"type": "text", "text": "These are the images at timestep t-2 in order front-left, front, front-right."},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][0]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][1]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[1][2]}"}},
-#         {"type": "text", "text": "These are the images at timestep t-1 in order front-left, front, front-right."},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][0]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][1]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[2][2]}"}},
-#         {"type": "text", "text": "These are the images at timestep t-0 in order front-left, front, front-right."},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][0]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][1]}"}},
-#         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imgs[3][2]}"}},
-#         {"type": "text", "text": f"""Using the provided images, you need to complete these  following instructions and questions.
-# ---
-# 1.scene_description_prompt
+spcur3 = ["016d6a913efa5ff1","80957a180a325353","13ba9275e341525b","e194cef299cf5264","2959d5dbe8235765","9b7108902e7158d6","8eda03e314a456a4","1b35b775c4a95647","bc2fe3314b345c63","6922b2ea23cd51a3","7f9f4661a4875959",]
 
-# ---
-# 2.object_description_prompt
+spcur2 = ["1b35b775c4a95647","2959d5dbe8235765","9b7108902e7158d6","bc2fe3314b345c63","e194cef299cf5264","80957a180a325353","7f9f4661a4875959","8eda03e314a456a4","48321ca34be254e5","016d6a913efa5ff1","13ba9275e341525b",]
 
-# ---
-# 3.commandintent_description_prompt
+spcur1 = ["bc2fe3314b345c63","13ba9275e341525b","1b35b775c4a95647","7f9f4661a4875959","6922b2ea23cd51a3","e194cef299cf5264","80957a180a325353","9b7108902e7158d6","016d6a913efa5ff1","2959d5dbe8235765","8eda03e314a456a4",]
 
-# ---
-# 4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: past_waypoints. prediction_prompt_waypoints"""},
-#         ]
-#     }
-# )
+wp_hist3 =["bc2fe3314b345c63","36077daf1cda5d05","b619e01b47775ec5","3e8c8729205850ab","8ddb6763987051ba","1b35b775c4a95647","6922b2ea23cd51a3","9b7108902e7158d6","8eda03e314a456a4","13ba9275e341525b","e194cef299cf5264","80957a180a325353","4566a3d9b5e95d9b","016d6a913efa5ff1","2959d5dbe8235765","7f9f4661a4875959","784c48e2a44c5036",]
 
-message = []
+wp_hist2 =["92bbb17b853a5aa2","3e8c8729205850ab","e194cef299cf5264","13ba9275e341525b","784c48e2a44c5036","72c898c5c6a45939","6922b2ea23cd51a3","7f9f4661a4875959","80957a180a325353","9b7108902e7158d6","43066c8c8e325fcf","36077daf1cda5d05","9215943615c45afd","016d6a913efa5ff1","1b35b775c4a95647","bc2fe3314b345c63","4566a3d9b5e95d9b","2959d5dbe8235765",]
 
-message.append({
-    "role": "developer",
-    "content": "system_message"
-})
+wp_hist1 =["9b7108902e7158d6", "784c48e2a44c5036", "1b35b775c4a95647", "8eda03e314a456a4", "eb5989e21dc35a47", "b9633d9afd4356a8", "e194cef299cf5264", "2959d5dbe8235765", "6922b2ea23cd51a3", "7f9f4661a4875959", "13ba9275e341525b", "43066c8c8e325fcf", "df8bff51c1d95e09", "3e8c8729205850ab", "016d6a913efa5ff1", "bc2fe3314b345c63", "80957a180a325353", "e0e228212a655d7f", ]
 
-content = []
-timesteps = ["t-3", "t-2", "t-1", "t-0"]
+wp3 =["e194cef299cf5264","7f9f4661a4875959","784c48e2a44c5036","8eda03e314a456a4","13ba9275e341525b","016d6a913efa5ff1","80957a180a325353","1b35b775c4a95647","8ddb6763987051ba","2959d5dbe8235765","9215943615c45afd","36077daf1cda5d05","9b7108902e7158d6","6922b2ea23cd51a3",]
 
-for i, timestep in enumerate(timesteps):
-    content.append({
-        "type": "text",
-        "text": f"These are the images at timestep {timestep} in order front-left, front, front-right."
-    })
-    for img in imgs[i]:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{img}"}
-        })
+wp2 =["8ddb6763987051ba","7f9f4661a4875959","6922b2ea23cd51a3","92bbb17b853a5aa2","2959d5dbe8235765","e194cef299cf5264","9b7108902e7158d6","784c48e2a44c5036","13ba9275e341525b","36077daf1cda5d05","016d6a913efa5ff1","1b35b775c4a95647",]
 
-content.append({
-    "type": "text",
-    "text": """Using the provided images, you need to complete these  following instructions and questions.
----
-1.scene_description_prompt
+wp1 =["80957a180a325353","6922b2ea23cd51a3","36077daf1cda5d05","016d6a913efa5ff1","e194cef299cf5264","8eda03e314a456a4","9215943615c45afd","13ba9275e341525b","7f9f4661a4875959","2959d5dbe8235765","8ddb6763987051ba","9b7108902e7158d6","784c48e2a44c5036","1b35b775c4a95647",]
 
----
-2.object_description_prompt
+wp = list(set(wp1) & set(wp2) & set(wp3))
+wp_hist = list(set(wp_hist1) & set(wp_hist2) & set(wp_hist3))
+spcur = list(set(spcur1) & set(spcur2) & set(spcur3))
+spcur_hist = list(set(spcur_hist1) & set(spcur_hist2) & set(spcur_hist3))
 
----
-3.commandintent_description_prompt
+all_false_positives = list(set(wp) & set(spcur) & set(wp_hist) & set(spcur_hist))
 
----
-4. The historical waypoints of the ego car of the last 2 seconds at an interval of 0.5s up until the present are: past_waypoints. prediction_prompt_waypoints"""
-})
-
-# Add user message
-message.append({
-    "role": "user",
-    "content": content
-})
-
-print(message)
+print(sorted(spcur))

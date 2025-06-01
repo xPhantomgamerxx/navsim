@@ -60,6 +60,9 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
     tokens_to_evaluate = list(set(scene_loader.tokens) & set(metric_cache_loader.tokens))
     pdm_results: List[Dict[str, Any]] = []
     for idx, (token) in enumerate(tokens_to_evaluate):
+        if token != "c538fa98187053d8":
+            continue
+
         logger.info(
             f"Processing scenario {idx + 1} / {len(tokens_to_evaluate)}, token={token}"
         )

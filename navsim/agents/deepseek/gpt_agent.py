@@ -49,7 +49,7 @@ class GPTAgent(AbstractAgent):
             past_vel_cur,
             command,
             token,
-            gpt_model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # "gpt-4.1"
+            gpt_model = "gpt-4.1",# "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC",# # # "gpt-4.1"
         ):
         """
         Function that builds the prompt from the given information and then calls the OpenAI API to get the trajectory prediction.
@@ -129,7 +129,7 @@ class GPTAgent(AbstractAgent):
             past_waypoints,
             command,
             token,
-            gpt_model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # "gpt-4.1"
+            gpt_model = "ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", #"ft:gpt-4.1-2025-04-14:scania-eearp:av-finetune-7:BNKqGQNC", # "gpt-4.1"
         ):
         """
         Function that builds the prompt from the given information and then calls the OpenAI API to get the trajectory prediction.
@@ -357,7 +357,7 @@ class GPTAgent(AbstractAgent):
         imgs_t3 = [agent_input.cameras[-4].cam_l0.image,
                    agent_input.cameras[-4].cam_f0.image,
                    agent_input.cameras[-4].cam_r0.image,]
-        imgs = [imgs_t0, imgs_t1, imgs_t2, imgs_t3]
+        imgs = [imgs_t3, imgs_t2, imgs_t1, imgs_t0]
         curr_frame = scene.scene_metadata.num_history_frames-1
         ego_history = scene.get_history_trajectory()
         ego_poses = ego_history.poses

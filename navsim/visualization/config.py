@@ -19,6 +19,12 @@ TAB_10: Dict[int, str] = {
     9: "#17becf",  # cyan
 }
 
+tobys_col: Dict[int, str] = {
+    0: "#59a14f",  # ground truth
+    1: "#ff0000",  # transfuser
+    2: "#0044ff",  # our agent
+}
+
 
 NEW_TAB_10: Dict[int, str] = {
     0: "#4e79a7",  # blue
@@ -45,7 +51,7 @@ ELLIS_5: Dict[int, str] = {
 
 BEV_PLOT_CONFIG: Dict[str, Any] = {
     "figure_size": (10, 10),
-    "figure_margin": (64, 64),
+    "figure_margin": (45, 45),
     "background_color": "white",
     "layers": ["map", "annotations"],  # "map", "annotations", "lidar"
 }
@@ -232,9 +238,9 @@ AGENT_CONFIG: Dict[SemanticMapLayer, Any] = {
 
 TRAJECTORY_CONFIG: Dict[str, Any] = {
     "human": {
-        "fill_color": NEW_TAB_10[4],
+        "fill_color": tobys_col[0],
         "fill_color_alpha": 1.0,
-        "line_color": NEW_TAB_10[4],
+        "line_color": tobys_col[0],
         "line_color_alpha": 1.0,
         "line_width": 2.0,
         "line_style": "-",
@@ -244,9 +250,9 @@ TRAJECTORY_CONFIG: Dict[str, Any] = {
         "zorder": 3,
     },
     "agent": {
-        "fill_color": ELLIS_5[0],
+        "fill_color": tobys_col[1],
         "fill_color_alpha": 1.0,
-        "line_color": ELLIS_5[4],
+        "line_color": tobys_col[1],
         "line_color_alpha": 1.0,
         "line_width": 1.0,
         "line_style": "-",
@@ -256,11 +262,11 @@ TRAJECTORY_CONFIG: Dict[str, Any] = {
         "zorder": 3,
     },
     "other": {
-        "fill_color": NEW_TAB_10[1],
+        "fill_color": tobys_col[2],
         "fill_color_alpha": 1.0,
-        "line_color": NEW_TAB_10[1],
+        "line_color": tobys_col[2],
         "line_color_alpha": 1.0,
-        "line_width": 1.0,
+        "line_width": 3.0,
         "line_style": "-",
         "marker": ".",
         "marker_size":0.0,

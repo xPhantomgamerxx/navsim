@@ -55,30 +55,43 @@ talk about:
     thesis presentaion 16th of june, thesis draft needed for 2nd
     initial runs of transfuser evaluation
     adding history frames, changing to waypoints rather than speed curvature vectors
+_________________________________________________________________
 
 experiments I have:
 -inference:
     - finetuned:
         - challenging scenarios x3:
             - with history x3
-            - with history and waypoints x2
-            - with history and waypoints and new order x2
-            - with history and new prompt order x2
+            - with history and waypoints x2 (maybe not possible lol)
+            - with history and waypoints and new order x3
+            - with history and new prompt order x3
         - random scenarios x3:
             - with history x1
     - generic:
-        - challenging scenarios x3:
+        - challenging scenarios x3: (all with new order)
+            - with history x3
+            - with history and waypoint new order x3
         - random scenarios x3:
+            - with history new order x3
+            - with history and waypoint new order x3
 -improvement:
     - finetuned:
-        - failure scenarios x1:
-            -
-        - random scenarios(not sure if want to use these):
-            - with waypoints x1
+        - failure scenarios x1: (all with new order)
+            - with waypoints x3
+            - with waypoints and history x3
+            - with sped cur x3
+            - with sped cur and history x3
+        - random scenarios:
+            - with waypoints x3
+            - with waypoints and history x3
     - generic:
         - failure scenarios: 
             - with waypoints x3
+            - with waypoints and history x3
+            - with speed cur x3
+            - with speed cur and history x3
 
+_________________________________________________________________
 
 experiments to run:
     - run inference on:
@@ -92,6 +105,8 @@ experiments to run:
     - run transfuser eval:
         - finetuned on fail set with speed cur x2
         - base model on fail set with sp cur x3
+
+_________________________________________________________________
 
 improvement experiments we want in the end(all with new order):
     - finetuned: 
@@ -125,6 +140,7 @@ improvement experiments we want in the end(all with new order):
                 - waypoint
                 - speed curvature
 
+_________________________________________________________________
 story to tell:
     where did we start, thought could improve on these challenging scenarios, out of distribution
     challenging dataset, doesnt really contain such challenging datas
@@ -135,3 +151,12 @@ story to tell:
     this also has some problems that are technically correct, but make the evaluation wrong
 
     always give the reasons for a change, and go change by change and make comparisons to before or to other versions and so
+
+
+
+comments from meeting:
+    shortcomings with the finetuning because we dont know how the performance scales with the data
+
+    possibly use 50 to finetune and see how that performs compared to the 100 we have
+
+    for sign example blur out the signs and see if it can then say its fine?

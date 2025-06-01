@@ -6,6 +6,7 @@ import traceback
 import logging
 import lzma
 import pickle
+import json
 
 import hydra
 from hydra.utils import instantiate
@@ -14,6 +15,7 @@ import pandas as pd
 
 from nuplan.planning.script.builders.logging_builder import build_logger
 
+from zoneinfo import ZoneInfo
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.common.dataloader import SceneLoader, SceneFilter, MetricCacheLoader
 from navsim.common.dataclasses import SensorConfig
@@ -58,9 +60,9 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
     tokens_to_evaluate = list(set(scene_loader.tokens) & set(metric_cache_loader.tokens))
     pdm_results: List[Dict[str, Any]] = []
     for idx, (token) in enumerate(tokens_to_evaluate):
-        # if token != "92bbb17b853a5aa2":
-        #     continue
-        print(f"scenario: {idx}")
+        logger.info(
+            f"Processing scenario {idx + 1} / {len(tokens_to_evaluate)}, token={token}"
+        )
         score_row: Dict[str, Any] = {"token": token, "valid": True}
         try:
             metric_cache_path = metric_cache_loader.metric_cache_paths[token]
@@ -68,12 +70,9 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
                 metric_cache: MetricCache = pickle.load(f)
 
             agent_input = scene_loader.get_agent_input_from_token(token)
-            if agent.requires_scene:
-                scene = scene_loader.get_scene_from_token(token)
-                trajectory = agent.compute_trajectory(agent_input, scene)
-            else:
-                trajectory = agent.compute_trajectory(agent_input)
-
+            
+            scene = scene_loader.get_scene_from_token(token)
+            trajectory , response = agent.compute_trajectory_waypoints(agent_input, scene)
             pdm_result = pdm_score(
                 metric_cache=metric_cache,
                 model_trajectory=trajectory,
@@ -81,9 +80,24 @@ def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[D
                 simulator=simulator,
                 scorer=scorer,
             )
-            # print(trajectory)
             score_row.update(asdict(pdm_result))
             print(score_row)
+            save_path = Path(cfg.output_dir)
+            data = {
+                "token": token,
+                "trajectory": trajectory.poses.tolist(),
+                "score": { "no_at_fault_collisions": pdm_result.no_at_fault_collisions,
+                            "drivable_area_compliance": pdm_result.drivable_area_compliance,
+                            "ego_progress": pdm_result.ego_progress,
+                            "time_to_collision_within_bound": pdm_result.time_to_collision_within_bound,
+                            "comfort": pdm_result.comfort,
+                            "driving_direction_compliance": pdm_result.driving_direction_compliance,
+                            "score": pdm_result.score,},
+                "response": response,
+            }
+            with open(f"{save_path}/trajs.jsonl", "a") as f:
+                json.dump(data, f)
+                f.write("\n")
         except Exception as e:
             logger.warning(f"----------- Agent failed for token {token}:")
             traceback.print_exc()
@@ -101,6 +115,9 @@ def main(cfg: DictConfig) -> None:
     """
 
     build_logger(cfg)
+
+    # Extract scenes based on scene-loader to know which tokens to distribute across workers
+    # TODO: infer the tokens per log from metadata, to not have to load metric cache and scenes here
     scene_loader = SceneLoader(
         sensor_blobs_path=None,
         data_path=Path(cfg.navsim_log_path),
@@ -137,7 +154,7 @@ def main(cfg: DictConfig) -> None:
     pdm_score_df.loc[len(pdm_score_df)] = average_row
 
     save_path = Path(cfg.output_dir)
-    timestamp = datetime.now().strftime("%Y.%m.%d.%H.%M.%S")
+    timestamp = datetime.now(ZoneInfo("Europe/Stockholm")).strftime("%Y.%m.%d.%H.%M.%S")
     pdm_score_df.to_csv(save_path / f"{timestamp}.csv")
 
     logger.info(

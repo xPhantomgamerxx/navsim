@@ -8,6 +8,8 @@ import torch
 import logging
 import json
 import pytz
+import math
+import ast
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -57,7 +59,7 @@ def vlm_inference(
         eos_token_id=tokenizer.eos_token_id,
         max_new_tokens=2048,
         do_sample=False,
-        use_cache=True)
+        use_cache=False)
 
     answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True).replace("\n\n", " ")
     if verbose:
@@ -74,7 +76,7 @@ def call_vlm(
     tokenizer = None, 
     task: str = None,
     nav_goal: str = None,
-    verbose: bool = False
+    verbose: bool = True
 ) -> str:
     """ Calls the VLM with the task specific prompt
     
@@ -106,7 +108,7 @@ def call_vlm(
         prompt = [
             {"role": "User",
             "content": f"<image_placeholder>\n \
-            You are an autonomous driving labeler with access to this front-view image from a car. \
+            You are an autonomous driving labeler with access to this front-view image from a car.\
             Imagine you are driving the car.\
             Describe the driving scene according to traffic lights, movements of other cars or pedestrians and lane markings.",
             "images": [img]},
@@ -146,7 +148,7 @@ def call_vlm(
     elif task == "final":
         prompt = [
             {"role": "User", 
-            "content": f"<image_placeholder>\n {message}",
+            "content": f"<image_placeholder>\n {message}. MAKE SURE TO FOLLOW THE SPECIFIED OUTPUT FORMAT.",
             "images": [img]},
             {"role": "Assistant", "content": ""}]
 
@@ -182,8 +184,8 @@ def GenerateMotion(
     llm: pipeline = None,
     tokenizer = None,
     command: str = None,
-    verbose: bool = False,
-    method: str = "llm"
+    verbose: bool = True,
+    method: str = "vlm"
 ) -> str:
     """Applies the OpenEMMA method of generating the reasoning process behind the prediction.
     
@@ -204,21 +206,13 @@ def GenerateMotion(
     past_speed_curvature_str = [f"[{x[0]:.1f},{x[1]:.1f}]" for x in zip(past_velocities, past_curvatures)]
     past_speed_curvature_str = ", ".join(past_speed_curvature_str)
 
-    # message = f"You are an expert driver, driving the ego vehicle. \
-    #     The scene is described by: {scene_description}.\
-    #     The most important objects have been described as: {object_description}.\
-    #     The current intent of the vehicle is described as: {intent_description}.\
-    #     The historical velocities and curvatures of the ego car of the last 5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
-    #     {f'For the previous frame, this prediction was given for the best motion: {past_intent} ' if past_intent else ''}. \
-    #     You must reason about the scene fully, then make a prediction about the next 10 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_10, curvature_10] in the style of a python tuple. If there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
-    
-    message = f"You are an expert driver, who is driving the ego vehicle. \
-        The scene is described by:{scene_description}.\
-        The most important objects to pay attention to have been described as:{object_description}.\
-        The current intent of the vehicle is described as:{intent_description}.\
-        The historical velocities and curvatures of the ego car of the last 4.5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}.\
-        They are given in the format of [[speed_1, curvature_1],...,[speed_9,curvature_9]] with a positive curvature for left turn, negative curvature for right turn, where the last entry is the last known speed and curvature.\
-        You must reason about the scene fully, then make a prediction about the next 8 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8] in the style of a python tuple. If there is ambiguity, assume the 5 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
+    message = f"You are an expert driver, who is driving the ego vehicle.\
+        The scene is described by:{scene_description}\
+        The most important objects to pay attention to have been described as:{object_description}\
+        The current intent of the vehicle is described as:{intent_description}\
+        The historical velocities and curvatures of the ego car of the last 1.5 seconds at an interval of 0.5s up until the present are: {past_speed_curvature_str}\
+        They are given in the format of [[speed_1, curvature_1],[speed_2, curvature_2],[speed_3,curvature_3]] with a positive curvature for left turn, negative curvature for right turn, where the last entry is the last known speed and curvature.\
+        You must reason about the scene fully, then make a prediction about the next 8 velocities and curvatures the vehicle shall take. Provide these in the format of [speed_1, curvature_1], ..., [speed_8, curvature_8]. If there is ambiguity, assume the 2 seconds of historical velocities are correct. The predicted speed and curvature should continue from where the past values left off. "
 
     while True:
         speed_curvature_pred = []
@@ -240,13 +234,19 @@ def GenerateMotion(
                 speed_curvature_pred = [[float(v), float(k)] for v, k in coordinates]
         elif method == "vlm":
             msg = f"{message} Base your prediction off the information as well as what you observe in the image"
-            # print(msg)
             if verbose: print(f"Message that will be passed to VLM: \n{msg}")
             prediction = call_vlm(message=msg, img=current_image, chat_processor=chat_processor, vlm=vlm, tokenizer= tokenizer, task="final")
-            # print(f'{prediction}')
-            coordinates = re.findall(r"\[([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\]", prediction)
-            if len(coordinates) == 0:
-                coordinates = re.findall(r"\(([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\)", prediction)
+
+            pattern = r'[\[\(]\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*[\]\)]'
+            matches = re.findall(pattern, prediction)
+
+            # Convert matched strings to Python tuples safely
+            parsed = [tuple(ast.literal_eval(match)) for match in matches]
+            coordinates = parsed[-8:]
+            # # Get the final 8 elements (assumed to be the predicted values)
+            # coordinates = re.findall(r"\[([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\]", prediction)
+            # if len(coordinates) == 0:
+            #     coordinates = re.findall(r"\(([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\)", prediction)
             speed_curvature_pred = [[float(v), float(k)] for v, k in coordinates]
         if not speed_curvature_pred == []:
             break
@@ -385,6 +385,72 @@ def predict_future_waypoints(pred_speeds, pred_curvatures, initial_pose = [0,0,0
     final = np.array(waypoints)
     return final[-8:,:]
 
+def predict_future_waypoints_rk4(speeds, curvatures, initial_pose=[0,0,0], dt=0.5):
+    """
+    4th-order Runge-Kutta integrator
+
+    Args
+    ----------
+    speeds : (N,) array_like
+        speeds in m/s
+    curvatures : (N,) array_like
+        curvatures in 1/m
+    initial_pose : (3,) array_like
+        initial pose [x,y,theta] is basically always [0,0,0]
+    dt : float
+        timestep between frames, is always 0.5s
+
+    Returns
+    ----------
+    waypoints : (N,3) np.ndarray
+        waypoints in format of [[x,y,heading], ...]
+    """
+    speeds = np.asarray(speeds, dtype=float)
+    curvatures = np.asarray(curvatures, dtype=float)
+    x, y, theta = initial_pose
+    waypoints = [[x, y, theta]]
+
+    def deriv(v_local, k_local, theta_local):
+        return (v_local * math.cos(theta_local), v_local * math.sin(theta_local), v_local * k_local)
+    
+    def vk(alpha):
+        return v1 + dv * alpha, k1 + dk * alpha
+    
+    n = len(speeds)
+    for i in range(n):
+        v1 = speeds[i]
+        k1 = curvatures[i]
+        if i < n - 1:
+            v2 = speeds[i + 1]
+            k2 = curvatures[i + 1]
+        else:  
+            v2, k2 = v1, k1
+
+        dv = v2 - v1
+        dk = k2 - k1
+
+        vA, kA = vk(0.0)
+        kx1, ky1, kth1 = deriv(vA, kA, theta)
+
+        vB, kB = vk(0.5)
+        kx2, ky2, kth2 = deriv(vB, kB, theta + 0.5 * dt * kth1)
+
+        kx3, ky3, kth3 = deriv(vB, kB, theta + 0.5 * dt * kth2)
+
+        vC, kC = vk(1.0)
+        kx4, ky4, kth4 = deriv(vC, kC, theta + dt * kth3)
+
+        dx = dt / 6.0 * (kx1 + 2 * kx2 + 2 * kx3 + kx4)
+        dy = dt / 6.0 * (ky1 + 2 * ky2 + 2 * ky3 + ky4)
+        dtheta = dt / 6.0 * (kth1 + 2 * kth2 + 2 * kth3 + kth4)
+
+        x += dx
+        y += dy
+        theta += dtheta
+        waypoints.append([x, y, theta])
+
+    return np.array(waypoints)
+
 def read_images(imgs_list:list):
     base64_images = []
     for img in imgs_list:
@@ -435,6 +501,6 @@ Should it maintain the current speed or slow down or speed up?
 prediction_prompt = f"""
 They are given in the format of [[speed_1, curvature_1],...,[speed_9,curvature_9]] with a positive curvature for left turn, negative curvature for right turn, where the last entry is the last known speed and curvature.
 Taking the given images and all of the descriptions into account, predict the next 8 curvature and velocity pairs that describe the optimal driving path. 
-Provide these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8] in the style of a python tuple. 
+YOU MUST PROVIDE these in the format of [speed_1, curvature_1], [speed_2, curvature_2],..., [speed_8, curvature_8]. 
 The predicted speed and curvature should continue from where the past values left off. 
 """
